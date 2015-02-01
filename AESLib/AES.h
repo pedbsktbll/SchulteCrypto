@@ -19,6 +19,7 @@ public:
 	bool getKey(BYTE* userKey, unsigned char& userKeySize);
 
 	static void initializeTables();
+	static void randBytes( BYTE* buffer, DWORD size );
 
 protected:
 	class CipherKey
@@ -37,12 +38,14 @@ protected:
 
 	protected:
 		BYTE* key;
-		unsigned char keySize, keyCols, rounds;
+		unsigned char keySize; // Nk = 4, 6, or 8 //// 16, 24, or 32 bytes
+		unsigned char keyCols; // Nb = 4 //// 32 bytes
+		unsigned char rounds;  // Nr = 10, 12, or 14 //// 40, 48, or 56 bytes
 		BYTE** roundKeys;
 
 	private:
-		void genRandKey( BYTE*, int );
-		void subBytes( BYTE*, int );
+//		void genRandKey( BYTE*, int );
+		void subWord( BYTE*, int );
 	};
 
 	class State
@@ -54,8 +57,9 @@ protected:
 		void nextBytes( BYTE* );
 		BYTE* getBytes();
 		void cipher();
+		void decipher();
 
-		void _xor( State& );
+//		void _xor( State& );
 		void _xor( BYTE* );
 
 	protected:
@@ -80,8 +84,6 @@ protected:
 	CipherKey* key;
 
 private:
-	void randBytes( BYTE*, int );
-
 	const static unsigned char Rcon[256];
 	const static unsigned char sbox[256];
 	const static unsigned char invSbox[256];

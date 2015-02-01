@@ -2,3 +2,5 @@
 *.sln
 *.sdf
 *.ipch
+Driver/Debug/
+AESLib/Debug/
