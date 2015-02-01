@@ -26,5 +26,11 @@
     <ClCompile Include="AES.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CipherKey.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="State.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
