@@ -68,7 +68,7 @@ bool AES::encrypt( BYTE* buffer, DWORD& buffSize, DWORD& commitSize, bool cbcMod
 
 	// CBC Mode vars:
 	BYTE initVector[16];
-	BYTE* lastState = initVector;
+//	BYTE* lastState = initVector;
 	BYTE cbcBuffers[2][16];
 	if( cbcMode )
 	{
@@ -94,15 +94,15 @@ bool AES::encrypt( BYTE* buffer, DWORD& buffSize, DWORD& commitSize, bool cbcMod
 			// Set the next bytes to the other buffer that we got from our last iteration
 			s.nextBytes( cbcBuffers[ completedCiphers % 2 ] );
 			// ... and XOR it with the last state
-			s._xor( lastState );
+			s._xor( &buffer[completedCiphers * 16] );
 		}
 		else
 			s.nextBytes( &buffer[completedCiphers * 16] );		
 
 		s.cipher();
 
-		if( cbcMode )
-			lastState = s.getBytes();
+// 		if( cbcMode )
+// 			lastState = s.getBytes();
 	}
 
 	// Let's go ahead and write out the final ciphertext for CBC
@@ -123,27 +123,35 @@ bool AES::decrypt(BYTE* buffer, DWORD& buffSize, bool cbcMode /*= false*/)
 	State s( key );
 
 	// Initialization Vector
-	BYTE initVector[16];
-	BYTE* lastState = initVector;
+//	BYTE initVector[16];
+//	BYTE* lastState = initVector;
+	BYTE cbcBuffers[2][16];
 	if( cbcMode )
-		memcpy( initVector, buffer, 16 );
+	{
+//		memcpy( initVector, buffer, 16 );
+		memcpy( cbcBuffers[0], buffer, 16 );
+//		memcpy( cbcBuffers[1], initVector, 16 );
+	}
 
 	// Get Cipher for each block
 	for( DWORD totalCiphers = buffSize / 16, completedCiphers = cbcMode ? 1 : 0; completedCiphers < totalCiphers; completedCiphers++ )
 	{
 		s.nextBytes( &buffer[completedCiphers * 16] );
+
+		if( cbcMode )
+			memcpy(cbcBuffers[completedCiphers % 2], s.getBytes(), 16);
+
 		s.decipher();
 
 		if( cbcMode )
 		{
-			s._xor( lastState );
-			lastState = s.getBytes();
-			memcpy( &buffer[(completedCiphers - 1) * 16], lastState, 16 );
+			s._xor( cbcBuffers[(completedCiphers + 1) % 2] );
+			memcpy( &buffer[(completedCiphers - 1) * 16], s.getBytes(), 16 );
 		}
 	}
 
 	// Let's zero out the padding AND additional cbc buffer if applicable
-	DWORD zeroSize = 16 * (cbcMode ? 2 : 1);
+	DWORD zeroSize = 16 * (cbcMode ? 1 : 0) + buffer[buffSize - 1];
 	SecureZeroMemory( &buffer[buffSize - zeroSize], zeroSize );
 	buffSize -= zeroSize;
 	return true;
