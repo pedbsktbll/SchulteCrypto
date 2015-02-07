@@ -13,8 +13,8 @@ class AES
 public:
 	AES();
 	virtual ~AES();
-	bool encrypt(BYTE* buffer, DWORD buffSize, DWORD& commitSize, bool cbcMode = true);
-	bool decrypt(BYTE* buffer, DWORD buffSize, bool cbcMode = true);
+	bool encrypt(BYTE* buffer, DWORD& buffSize, DWORD& commitSize, bool cbcMode = false, BYTE* cbcIV = NULL);
+	bool decrypt(BYTE* buffer, DWORD& buffSize, bool cbcMode = false);
 	bool setKey(BYTE* userKey, unsigned char userKeySize);
 	bool getKey(BYTE* userKey, unsigned char& userKeySize);
 
@@ -31,21 +31,20 @@ protected:
 
 		void generateRoundKeys();
 		void getRoundKey( BYTE roundKey[16], unsigned char num );
-//		long getSeed();
 		const BYTE* getKey();
 		unsigned char getKeySize();
 		unsigned char getNumRounds();
 
 	protected:
+		void rotWord( BYTE* w );
+		void subWord( BYTE* w );
+		void xorRcon( BYTE* w, unsigned char index );
+
 		BYTE* key;
 		unsigned char keySize; // Nk = 4, 6, or 8 //// 16, 24, or 32 bytes
-		unsigned char keyCols; // Nb = 4 //// 32 bytes
-		unsigned char rounds;  // Nr = 10, 12, or 14 //// 40, 48, or 56 bytes
+//		unsigned char keyCols; // Nb = 4 //// 32 bytes
+		unsigned char rounds;  // Nr = 10, 12, or 14
 		BYTE** roundKeys;
-
-	private:
-//		void genRandKey( BYTE*, int );
-		void subWord( BYTE*, int );
 	};
 
 	class State
@@ -53,13 +52,11 @@ protected:
 	public:
 		State( CipherKey* key );
 		virtual ~State();
-//		State& operator=(const State&);
 		void nextBytes( BYTE* );
 		BYTE* getBytes();
 		void cipher();
 		void decipher();
 
-//		void _xor( State& );
 		void _xor( BYTE* );
 
 	protected:
@@ -72,7 +69,6 @@ protected:
 		void invMixCols();
 		const BYTE* getState();
 
-//		BYTE state[16];
 		BYTE* state;
 		unsigned char numRounds;
 		CipherKey* key;

@@ -197,16 +197,6 @@ void AES::State::invMixCols()
 	memcpy( state, newData, sizeof( BYTE ) * stateSize );
 }
 
-// /**
-// * XORs this state with another state
-// * @param s Other state to XOR with
-// */
-// void AES::State::_xor( State& s )
-// {
-// 	for( int i = 0; i < stateSize; i++ )
-// 		state[i] ^= s.state[i];
-// }
-
 void AES::State::_xor( BYTE* buffer )
 {
 	for( int i = 0; i < stateSize; i++ )
