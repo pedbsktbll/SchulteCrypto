@@ -17,7 +17,7 @@ AES::CipherKey::CipherKey( BYTE* userKey, unsigned char userKeySize )
 {
 	key = NULL;
 	roundKeys = NULL;
-	this->keySize = keyCols = rounds = 0;
+	this->keySize = rounds = 0;
 
 	if( (userKeySize != 32 && userKeySize != 24 && userKeySize != 16) || userKey == NULL )
 		return;
@@ -25,18 +25,15 @@ AES::CipherKey::CipherKey( BYTE* userKey, unsigned char userKeySize )
 	key = new BYTE[this->keySize = userKeySize];
 	memcpy( key, userKey, userKeySize );
 
-	keyCols = userKeySize / 4;
-	rounds = keyCols + 6;
+	rounds = keySize / 4 + 6;
 }
 AES::CipherKey::CipherKey()
 {
 	key = new BYTE[this->keySize = 32];
 	roundKeys = NULL;
-//	genRandKey( key, keySize );
 	AES::randBytes( key, keySize );
 
-	keyCols = keySize / 4;
-	rounds = keyCols + 4 + 2;
+	rounds = keySize / 4 + 6;
 }
 
 AES::CipherKey::~CipherKey()
@@ -51,7 +48,7 @@ AES::CipherKey::~CipherKey()
 		delete[] roundKeys;
 	}
 	roundKeys = NULL;
-	keySize = keyCols = rounds = 0;
+	keySize = rounds = 0;
 }
 
 /**
@@ -60,50 +57,44 @@ AES::CipherKey::~CipherKey()
  */
 void AES::CipherKey::generateRoundKeys()
 {
-	//	roundKeys = new BYTE*[4];
-	//	for(int i = 0; i < 4; i++)
-	//		roundKeys[i] = new BYTE[(rounds + 1) * 4];
-
+	unsigned char Nk = keySize / 4;
+	// Initializing roundKeys
 	roundKeys = new BYTE*[(rounds + 1) * 4];
 	for( int i = 0; i < (rounds + 1) * 4; i++ )
 		roundKeys[i] = new BYTE[4];
 
-	for( int i = 0; i < keyCols; i++ )
+	// First Nk words of the expanded key are filled with the CipherKey
+	for( int i = 0; i < Nk; i++ )
 		for( int j = 0; j < 4; j++ )
 			roundKeys[i][j] = key[4 * i + j];
 
-	BYTE col[4];
-	for( int i = 0; i < 4; i++ )
-		col[i] = key[4 * keyCols + (i - 4)];
-
-	for( int i = keyCols; i < (rounds + 1) * 4; )
+	BYTE temp[4];
+	for( int i = Nk; i < (rounds + 1) * 4; i++ )
 	{
-		// In-line RotWord():
-		BYTE temp = col[0];
-		col[0] = col[1];
-		col[1] = col[2];
-		col[2] = col[3];
-		col[3] = temp;
+		for( int j = 0; j < 4; j++ )
+			temp[j] = roundKeys[i-1][j];
 
-		// SubWord():
-		subWord( col, 4 );
+		if( i % Nk == 0 )
+		{
+			rotWord( temp );
+			subWord( temp );
+			xorRcon( temp, i / Nk );
+		}
+		else if( Nk > 6 && i % Nk == 4 )
+			subWord( temp );
 
 		for( int j = 0; j < 4; j++ )
-			roundKeys[i][j] = col[j] = (roundKeys[i - keyCols][j] ^ col[j] ^ (j == 0 ? Rcon[i / keyCols] : 0));
-		i++;
-		for( int j = 0; j < 3; j++, i++ )
-			for( int k = 0; k < 4; k++ )
-				roundKeys[i][k] = col[k] = (roundKeys[i - keyCols][k] ^ col[k]);
-
-		//ONLY for 256-bit keys:
-		if( keySize == 32 && i < 60 )
-		{
-			subWord( col, 4 );
-			for( int j = 0; j < 4; j++, i++ )
-				for( int k = 0; k < 4; k++ )
-					roundKeys[i][k] = col[k] = (BYTE) (roundKeys[i - keyCols][k] ^ col[k]);
-		}
+			roundKeys[i][j] = roundKeys[i - Nk][j] ^ temp[j];
 	}
+}
+
+void AES::CipherKey::rotWord( BYTE* w )
+{
+	BYTE temp = w[0];
+	w[0] = w[1];
+	w[1] = w[2];
+	w[2] = w[3];
+	w[3] = temp;
 }
 
 /**
@@ -111,10 +102,15 @@ void AES::CipherKey::generateRoundKeys()
 * @param bytes Byte array to substitute
 * @return Corresponding substituted byte array
 */
-void AES::CipherKey::subWord( BYTE* bytes, int length )
+void AES::CipherKey::subWord( BYTE* w )
 {
-	for( int i = 0; i < length; i++ )
-		bytes[i] = sbox[bytes[i]];
+	for( int i = 0; i < 4; i++ )
+		w[i] = sbox[w[i]];
+}
+
+void AES::CipherKey::xorRcon( BYTE* w, unsigned char index )
+{
+	w[0] ^= Rcon[index];
 }
 
 /**
@@ -124,24 +120,10 @@ void AES::CipherKey::subWord( BYTE* bytes, int length )
 */
 void AES::CipherKey::getRoundKey( BYTE roundKey[16], unsigned char num )
 {
-	//	BYTE* roundKey = new BYTE[16];
 	for( int i = num * 4, k = 0; i < (num + 1) * 4; i++ )
 		for( int j = 0; j < 4; j++ )
 			roundKey[k++] = roundKeys[i][j];
-	//	return roundKey;
 }
-
-// /**
-// * Returns long representative of the key
-// * @return 64-bit long representative of the key
-// */
-// long AES::CipherKey::getSeed()
-// {
-// 	long retVal = 0;
-// 	for( int i = 0; i < 8; i++ )
-// 		retVal = (retVal << 8) + (key[i]);
-// 	return retVal;
-// }
 
 /**
 * Returns total number of rounds
@@ -151,14 +133,6 @@ unsigned char AES::CipherKey::getNumRounds()
 {
 	return rounds;
 }
-
-// //Size is in bytes
-// void AES::CipherKey::genRandKey( BYTE* data, int size )
-// {
-// 	srand( (unsigned int) time( NULL ) );
-// 	for( int i = 0; i < size; i++ )
-// 		data[i] = rand() % 256;
-// }
 
 const BYTE* AES::CipherKey::getKey()
 {
