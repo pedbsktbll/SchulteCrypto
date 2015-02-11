@@ -77,6 +77,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Driver.cpp" />
+    <ClCompile Include="DriverAES.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AESLib\AESLib.vcxproj">
@@ -85,6 +86,9 @@
     <ProjectReference Include="..\RSALib\RSALib.vcxproj">
       <Project>{500d8853-d5f9-442e-8286-1aa1233384d3}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DriverAES.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

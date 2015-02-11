@@ -7,8 +7,13 @@ public:
 	RSAKey() {}
 	virtual ~RSAKey() = 0 {}
 
-	bool base64Encode( BYTE* buff, DWORD buffSize, char*& encodedBuff, DWORD& encodedBuffSize );
-	bool base64Decode( char* buff, DWORD buffSize, BYTE*& decodedBuff, DWORD& decodedBuffSize );
+	virtual bool setKey( const char* buff, DWORD buffSize ) = 0;
+
+	bool base64Encode( const BYTE* buff, DWORD buffSize, char*& encodedBuff, DWORD& encodedBuffSize );
+	bool base64Decode( const char* buff, DWORD buffSize, BYTE*& decodedBuff, DWORD& decodedBuffSize );
+
+protected:
+	bool eliminateHeader( const char*& buff, DWORD& buffSize );
 
 //private:
 	static const char base64chars[];

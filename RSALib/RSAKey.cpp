@@ -16,7 +16,7 @@ const char RSAKey::base64charsDecode[] = {
 	66, 66, 66, 66, 66, 66
 };
 
-bool RSAKey::base64Encode( BYTE* buff, DWORD buffSize, char*& encodedBuff, DWORD& encodedBuffSize )
+bool RSAKey::base64Encode( const BYTE* buff, DWORD buffSize, char*& encodedBuff, DWORD& encodedBuffSize )
 {
 	if( buff == NULL || buffSize == 0 || encodedBuff == NULL )
 		return false;
@@ -72,7 +72,7 @@ bool RSAKey::base64Encode( BYTE* buff, DWORD buffSize, char*& encodedBuff, DWORD
 	return true;
 }
 
-bool RSAKey::base64Decode( char* buff, DWORD buffSize, BYTE*& decodedBuff, DWORD& decodedBuffSize )
+bool RSAKey::base64Decode( const char* buff, DWORD buffSize, BYTE*& decodedBuff, DWORD& decodedBuffSize )
 {
 	if( buff == NULL || buffSize < 4 || decodedBuff == NULL || buffSize % 4 != 0 )
 		return false;
@@ -83,7 +83,7 @@ bool RSAKey::base64Decode( char* buff, DWORD buffSize, BYTE*& decodedBuff, DWORD
 	// 4 base64 into 3 chars
 	b64Type type;
 	DWORD i = 0, j = 0;
-	for( DWORD k = 0; k < buffSize; k++ )
+	for( DWORD k = 0; k < buffSize / 4; k++ )
 	{
 		// HI! My name be Windows, and I'm a little-endian SHITHEAD!
 		type.t4 = base64charsDecode[buff[i++]];
@@ -100,5 +100,63 @@ bool RSAKey::base64Decode( char* buff, DWORD buffSize, BYTE*& decodedBuff, DWORD
 		decodedBuffSize--;
 	if( buff[buffSize - 2] == '=' )
 		decodedBuffSize--;
+	return true;
+}
+
+bool RSAKey::eliminateHeader( const char*& buff, DWORD& buffSize )
+{
+	// Whoever is calling this function should have already validated the buffer and buffSize
+	DWORD startOffset = 0;
+	DWORD endOffset = buffSize - 1;
+
+	// Let's eliminate this pesky PKCS #1 HEADER thing
+	for( ; startOffset < buffSize && isspace( buff[startOffset] ); startOffset++ );
+	if( startOffset == buffSize )
+		return false;
+
+	for( ; startOffset < buffSize && buff[startOffset] == '-'; startOffset++ ) ;
+	if( startOffset == buffSize )
+		return false;
+
+	for( ; startOffset < buffSize && buff[startOffset] != '-'; startOffset++ ) ;
+	if( startOffset == buffSize )
+		return false;
+
+	for( ; startOffset < buffSize && buff[startOffset] == '-'; startOffset++ ) ;
+	if( startOffset == buffSize )
+		return false;
+
+	for( ; startOffset < buffSize && isspace(buff[startOffset]); startOffset++ ) ;
+	if( startOffset == buffSize )
+		return false;
+	// Yay! no more HEADER!
+
+	// Let's eliminate this pesky PKCS #1 FOOTER thing
+	if( buff[endOffset] == '\0' )
+		endOffset--;
+
+	for( ; endOffset > startOffset && isspace( buff[endOffset] ); endOffset-- );
+	if( endOffset == startOffset )
+		return false;
+
+	for( ; endOffset > startOffset && buff[endOffset] == '-'; endOffset-- ) ;
+	if( endOffset == startOffset )
+		return false;
+
+	for( ; endOffset > startOffset && buff[endOffset] != '-'; endOffset-- ) ;
+	if( endOffset == startOffset )
+		return false;
+
+	for( ; endOffset > startOffset && buff[endOffset] == '-'; endOffset-- ) ;
+	if( endOffset == startOffset )
+		return false;
+
+	for( ; endOffset > startOffset && isspace( buff[endOffset]); endOffset-- ) ;
+	if( endOffset == startOffset )
+		return false;
+	// Yay! no more FOOTER!
+
+	buff += startOffset;
+	buffSize = endOffset - startOffset + 1;
 	return true;
 }
