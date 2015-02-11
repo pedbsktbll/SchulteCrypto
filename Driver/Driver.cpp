@@ -2,9 +2,14 @@
 //
 
 #include "../AESLib/AES.h"
+
+#include "../RSALib/RSAKey.h"
+#include "../RSALib/RSAPublicKey.h"
+
 #include <stdio.h>
 
 #pragma comment(lib, "AESLib.lib")
+#pragma comment(lib, "RSALib.lib")
 
 #define MSG_SUC "Success!"
 #define MSG_FAL "___FAILED___!"
@@ -13,6 +18,18 @@ bool testAES( BYTE* input, DWORD inputSize, BYTE* key, DWORD keySize, BYTE* expe
 
 int wmain(int argc, wchar_t* argv[])
 {
+	BYTE chars[] = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
+	char* encoded;
+	DWORD encodedSize;
+
+	RSAPublicKey k;
+	k.base64Encode( chars, sizeof( chars ) - 1, encoded, encodedSize );
+
+	BYTE* decoded;
+	DWORD decodedSize;
+	k.base64Decode( encoded, encodedSize, decoded, decodedSize );
+	return 0;
+
 	// APPENDIX B: Test 1
 	{
 		BYTE input[] = { 0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d, 0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34 };
