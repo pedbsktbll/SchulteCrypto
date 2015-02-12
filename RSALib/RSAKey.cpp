@@ -160,3 +160,40 @@ bool RSAKey::eliminateHeader( const char*& buff, DWORD& buffSize )
 	buffSize = endOffset - startOffset + 1;
 	return true;
 }
+
+bool RSAKey::readDER_TLV( BYTE*& dataPtr, DER_TLV& der )
+{
+	der.tag.tag = *(dataPtr++);
+
+	if( *dataPtr & 0x80 )
+	{
+		BigEndianDWORD beNum = { 0 };
+		char lengthNum = *(dataPtr++) ^ 0x80;
+		if( lengthNum > 4 || lengthNum == 0 )
+			return false;
+
+		for( char i = lengthNum - 1; i >= 0; i-- )
+			beNum.arr[i] = *(dataPtr++);
+// 		switch( lengthNum )
+// 		{
+// 			case 4: beNum.arr[--lengthNum] = *(ptr++);
+// 			case 3: beNum.arr[--lengthNum] = *(ptr++);
+// 			case 2: beNum.arr[--lengthNum] = *(ptr++);
+// 			case 1: beNum.arr[--lengthNum] = *(ptr++); break;
+// 			
+// 			default: retVal.tag = 0; return retVal; // Error parsing...
+// 		}
+		der.length = beNum.num;
+	}
+	else
+		der.length = *(dataPtr++);
+
+	der.value = dataPtr;
+	return true;
+}
+
+void RSAKey::setDER_Values( DER_TLV& der, BYTE*& param, DWORD& paramSize )
+{
+	param = new BYTE[paramSize = der.length];
+	memcpy( param, der.value, der.length );
+}

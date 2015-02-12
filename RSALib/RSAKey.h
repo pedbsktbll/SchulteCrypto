@@ -13,12 +13,6 @@ public:
 	bool base64Decode( const char* buff, DWORD buffSize, BYTE*& decodedBuff, DWORD& decodedBuffSize );
 
 protected:
-	bool eliminateHeader( const char*& buff, DWORD& buffSize );
-
-//private:
-	static const char base64chars[];
-	static const char base64charsDecode[];
-
 #pragma pack(push, 1)
 	union b64Type
 	{
@@ -35,7 +29,41 @@ protected:
 			DWORD t4 : 6;
 		};
 	};
+
+	struct DER_TLV
+	{
+		union
+		{
+			BYTE tag;
+			struct
+			{
+				BYTE tagNum : 5;
+				BYTE form : 1;
+				BYTE asn1Class : 2;
+			};
+		} tag;
+		DWORD length;
+		BYTE* value;
+	};
+
+	union BigEndianDWORD
+	{
+		DWORD num;
+		char c1, c2, c3, c4;
+		char arr[4];
+	};
 #pragma pack(pop)
+
+	bool eliminateHeader( const char*& buff, DWORD& buffSize );
+	bool readDER_TLV( BYTE*& dataPtr, DER_TLV& der );
+	void setDER_Values( DER_TLV& der, BYTE*& param, DWORD& paramSize );
+
+//private:
+	static const char base64chars[];
+	static const char base64charsDecode[];
+
+	const BYTE SEQUENCE = 0x30;
+	const BYTE INTEGER =  0x02;
 
 };
 

@@ -8,5 +8,9 @@ public:
 	~RSAPublicKey();
 
 	virtual bool setKey( const char* buff, DWORD buffSize );
+
+protected:
+	DWORD modulus; // 'n'
+	DWORD publicExponent; // 'e'
 };
 
