@@ -27,6 +27,9 @@
     <ClInclude Include="RSAPrivateKey.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="BigNum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RSAKey.cpp">
@@ -36,6 +39,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="RSAPrivateKey.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BigNum.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

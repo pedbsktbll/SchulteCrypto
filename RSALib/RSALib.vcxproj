@@ -74,11 +74,13 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BigNum.h" />
     <ClInclude Include="RSAKey.h" />
     <ClInclude Include="RSAPrivateKey.h" />
     <ClInclude Include="RSAPublicKey.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BigNum.cpp" />
     <ClCompile Include="RSAKey.cpp" />
     <ClCompile Include="RSAPrivateKey.cpp" />
     <ClCompile Include="RSAPublicKey.cpp" />

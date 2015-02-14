@@ -7,7 +7,14 @@ public:
 	RSAPrivateKey();
 	~RSAPrivateKey();
 
+	// Accepts PKCS #1 Format
 	virtual bool setKey( const char* buff, DWORD buffSize );
+
+	// RSADP
+	bool decipher();
+
+	// RSASP1
+	bool sign();
 
 protected:
 	BYTE version;
