@@ -5,7 +5,6 @@ BigNum::BigNum()
 {
 	numDigits = 0;
 	allocatedBytes = 0;
-//	positive = true;
 	num = NULL;
 }
 
@@ -96,33 +95,6 @@ BigNum BigNum::operator+(const BigNum& other)
 		retVal.num[byteOffset] |= result;
 	}
 	return retVal;
-
-// 	const BigNum *mostDigits, *leastDigits;
-// 	if( this->numDigits >= other.numDigits )
-// 	{
-// 		mostDigits = &other;
-// 		leastDigits = this;
-// 	}
-// 	else
-// 	{
-// 		mostDigits = this;
-// 		leastDigits = &other;
-// 	}
-// 	BigNum retVal( mostDigits->numDigits + 1 );
-// 
-// 	int carry = 0, result = 0, i = mostDigits->numDigits - 1, j = leastDigits->numDigits - 1, k = retVal.numDigits - 1;
-// 	for( ; i >= 0; i--, j-- )
-// 	{
-// 		result = carry + mostDigits->num[i] + leastDigits->num[j];
-// 		carry = result / base;
-// 		result %= base;
-// 		retVal.num[k] = result;
-// 	}
-// 
-// 	if( carry > 0 )
-// 		retVal.num[0] = carry;
-// 	else
-// 		retVal.nu
 }
 
 BigNum BigNum::operator*(const BigNum& other)
@@ -161,38 +133,44 @@ BigNum BigNum::gradeSchoolMultiply( const BigNum& other )
 	}
 
 	DWORD numDigitsPerSingle = top->numDigits + 1;//log10( (double) top->numDigits );
-	BYTE* resultArr = (BYTE*) calloc(bot->numDigits, numDigitsPerSingle);
+	DWORD numBytesPerSingle = (numDigitsPerSingle + 1) / 2;
+	BYTE* resultArr = (BYTE*) calloc( bot->numDigits, numBytesPerSingle );
 	
 	// Multiplies everything out
-	int result = 0, carry = 0, arrOffset = 0;
-	for( int i = bot->numDigits - 1, b = bot->num[i]; i >= 0; i--, b = bot->num[i], arrOffset++ )
+	for( int i = 0, bByteOffset = 0, carry = 0, bFirstNibble = true; i < (int) bot->numDigits;
+		i++, bFirstNibble = !bFirstNibble, bFirstNibble ? bByteOffset++ : 0 )
 	{
+		int b = (bFirstNibble ? (bot->num[bByteOffset] & 0xF0) >> 4 : bot->num[bByteOffset] & 0x0F);
 		carry = 0;
-		for( int j = top->numDigits - 1, t = top->num[j]; j >= 0; j--, t = top->num[j] )
+		for( int j = 0, tByteOffset = 0, result = 0, tFirstNibble = true; j < (int) top->numDigits;
+			j++, tFirstNibble = !tFirstNibble, tFirstNibble ? tByteOffset++ : 0 )
 		{
+			int t = (tFirstNibble ? (top->num[tByteOffset] & 0xF0) >> 4 : top->num[tByteOffset] & 0x0F);
 			result = t * b + carry;
 			carry = result / base;
-			result %= base;
-			resultArr[(arrOffset * numDigitsPerSingle) + (j + 1)] = result;
+			result = ( tFirstNibble ? (result % base) << 4 : (result % base));
+			resultArr[i * numBytesPerSingle + tByteOffset] |= result;
 		}
-		resultArr[arrOffset * numDigitsPerSingle] = carry;
+		// Hmm, I could maybe group this into the for-loop...
+		carry = ((top->numDigits % 2 == 0 ) ? (carry % base) << 4 : (carry % base));
+		resultArr[i * numBytesPerSingle + numBytesPerSingle - 1] |= carry;
 	}
 
-	// Now time to add them all!
+	// Now time to add them all! This is an optimized add which is why we dont use BigNum+
 	BigNum retVal( bot->numDigits + top->numDigits );
-	carry = 0;
-	for( int k = 0; k < (int) retVal.numDigits; k++ )
+	for( int k = 0, result = 0, carry = 0; k < (int) retVal.numDigits; k++ )
 	{
 		result = carry;
-		for( int l = 0; l <= k && l < 3; l++ )
+		for( int l = 0, bitNum = k - l; l < (int) bot->numDigits && l <= k; l++, bitNum = k - l )
 		{
-			if( ((int) numDigitsPerSingle - 1 - (k - l)) < 0 )
+			if( bitNum > (int) numDigitsPerSingle )
 				continue;
-			result += resultArr[(l * numDigitsPerSingle) + (numDigitsPerSingle - 1 - (k - l))];
+			result += ((bitNum % 2 == 0) ? (resultArr[l * numBytesPerSingle + bitNum / 2] & 0xF0) >> 4 :
+				(resultArr[l * numBytesPerSingle + bitNum / 2] & 0x0F));
 		}
 		carry = result / base;
-		result %= base;
-		retVal.num[retVal.numDigits - 1 - k] = result;
+		result = ((k % 2 == 0) ? (result % base) << 4 : (result % base));
+		retVal.num[k / 2] |= result;
 	}
 
 	free( resultArr );
