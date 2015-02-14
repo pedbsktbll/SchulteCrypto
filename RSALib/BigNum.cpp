@@ -22,9 +22,10 @@ BigNum::~BigNum()
 {
 	if( num != NULL )
 		delete[] num;
+	this->numDigits = 0;
 }
 
-BigNum BigNum::operator*(const BigNum& other)
+BigNum* BigNum::operator*(const BigNum& other)
 {
 	return gradeSchoolMultiply( other );
 }
@@ -40,7 +41,7 @@ BigNum BigNum::operator*(const BigNum& other)
 -------- +
 26852661 <-- Add up results, remember to carry
  **************************************************************************/
-BigNum BigNum::gradeSchoolMultiply( const BigNum& other )
+BigNum* BigNum::gradeSchoolMultiply( const BigNum& other )
 {
 	// We need a BigNum for each and every digit of the smaller number of digits number
 	const BigNum* bot, *top;
@@ -58,34 +59,51 @@ BigNum BigNum::gradeSchoolMultiply( const BigNum& other )
 	DWORD numDigitsPerSingle = top->numDigits + 1;//log10( (double) top->numDigits );
 //	BigNum* arr = new BigNum[bot->numDigits * numDigitsPerSingle];
 //	BigNum** resultArr = (BigNum**) arr;
-	BYTE** resultArr = (BYTE**) calloc(bot->numDigits, numDigitsPerSingle);
+	BYTE* resultArr = (BYTE*) calloc(bot->numDigits, numDigitsPerSingle);
 	
 	// Multiplies everything out
-	int result = 0, carry = 0;
-//	BYTE* b = bot->num[]
-	for( int i = 0, b = bot->num[i]; i < (int) bot->numDigits; i++, b = bot->num[i] )
+	int result = 0, carry = 0, arrOffset = 0;
+	for( int i = bot->numDigits - 1, b = bot->num[i]; i >= 0; i--, b = bot->num[i], arrOffset++ )
+//	for( BYTE* b = bot->num + bot->numDigits - 1; b >= bot->num; b-- )
 	{
-		for( int j = 0, t = top->num[j]; j < (int) top->numDigits; j++, t = top->num[j] )
+		carry = 0;
+		for( int j = top->numDigits - 1, t = top->num[j]; j >= 0; j--, t = top->num[j] )
+//		for( BYTE* t = top->num + top->numDigits - 1; t >= top->num; t-- )
 		{
-			result = (t + carry) * b;
-			carry = result % base;
-			result /= base;
-			resultArr[i][top->numDigits - j] = result;
+			result = t * b + carry;
+			carry = result / base;
+			result %= base;
+			resultArr[(arrOffset * numDigitsPerSingle) + (j + 1)] = result;
 		}
-		resultArr[i][0] = carry;
+		resultArr[arrOffset * numDigitsPerSingle] = carry;
 	}
 
 	// Now time to add them all!
-	BigNum retVal( bot->numDigits + top->numDigits );
+	BigNum* retVal = new BigNum( bot->numDigits + top->numDigits );
 
-	// Iterate over EVERY digit
-	for( int k = 0, sum = 0, carry = 0; k < (int) numDigitsPerSingle; k++ )
+// 	// Iterate over EVERY digit
+// 	for( int k = 0, sum = 0, carry = 0; k < (int) numDigitsPerSingle; k++ )
+// 	{
+// 		for( int l = 0; l <= k; l++ )
+// 			sum += resultArr[(l * numDigitsPerSingle) + (numDigitsPerSingle - k - l)];
+// 		carry = sum % base;
+// 		sum /= base;
+// 		retVal.num[retVal.numDigits - 1 - k] = sum;
+// 	}
+
+	carry = 0;
+	for( int k = 0; k < (int) retVal->numDigits; k++ )
 	{
-		for( int l = 0; l <= k; l++ )
-			sum += resultArr[l][k - l];
-		carry = sum % base;
-		sum /= base;
-		retVal.num[retVal.numDigits - 1 - k] = sum;
+		result = carry;
+		for( int l = 0; l <= k && l < 3; l++ )
+		{
+			if( ((int) numDigitsPerSingle - 1 - (k - l)) < 0 )
+				continue;
+			result += resultArr[(l * numDigitsPerSingle) + (numDigitsPerSingle - 1 - (k - l))];
+		}
+		carry = result / base;
+		result %= base;
+		retVal->num[retVal->numDigits - 1 - k] = result;
 	}
 
 	free( resultArr );

@@ -17,11 +17,14 @@ bool testAES( BYTE* input, DWORD inputSize, BYTE* key, DWORD keySize, BYTE* expe
 
 int wmain( int argc, wchar_t* argv[] )
 {
-	BYTE num1[] = { '1', '0', 'E', '1' };
-	BYTE num2[] = { '2', '6', 'D' };
+//	BYTE num1[] = { 0xA8, 0xE9 };
+//	BYTE num2[] = { 0x26, 0xD0 };
+	BYTE num1[] = { 0x0A, 0x08, 0x0E, 0x09 };
+	BYTE num2[] = { 0x02, 0x06, 0x0D };
 	BigNum a( 4, num1 );
 	BigNum b( 3, num2 );
-	BigNum c = a * b;
+	BigNum* c = a * b;
+	delete c;
 
 // 	BYTE chars[] = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
 // 	char* encoded;

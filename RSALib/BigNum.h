@@ -8,7 +8,7 @@ public:
 	BigNum( DWORD numDigits, BYTE* num = NULL, bool positive = true );
 	~BigNum();
 
-	BigNum operator*(const BigNum& other);
+	BigNum* operator*(const BigNum& other);
 
 
 protected:
@@ -18,6 +18,6 @@ protected:
 
 	const unsigned short base = 16;
 
-	BigNum gradeSchoolMultiply( const BigNum& other );
+	BigNum* gradeSchoolMultiply( const BigNum& other );
 };
 
