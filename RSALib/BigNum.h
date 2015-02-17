@@ -11,16 +11,24 @@ public:
 	BigNum( char* num ); // Must be in hexadecimal
 	BigNum( const BigNum& other );
 	~BigNum();
+	void initialize( DWORD numDigits, BYTE* num = NULL, bool reverseOrder = true );//, bool positive = true );
 
 	bool operator>(BigNum& other);
 	bool operator<(BigNum& other);
 	bool operator==(BigNum& other);
 	bool operator>=(BigNum& other);
 	bool operator<=(BigNum& other);
+	BigNum& operator=(const BigNum& other);
 	BigNum operator+(const BigNum& other);
+	BigNum& operator+=(const BigNum& other);
 	BigNum operator-(BigNum& other);
+	BigNum& operator-=(BigNum& other);
 	BigNum operator*(const BigNum& other);
+	BigNum operator/(BigNum& other);
+	BigNum operator%(BigNum& other);
 	BigNum operator^(const BigNum& other);
+
+	void clear();
 
 protected:
 	DWORD numDigits; // Total number of digits starting with 1. May include zeros at the beginning
@@ -44,7 +52,8 @@ protected:
 	const unsigned short base = 16;
 
 	void validateNumDigits();
-	BigNum gradeSchoolMultiply( const BigNum& other );
+	BigNum classicalMultiply( const BigNum& other );
+	void classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder );
 
 };
 

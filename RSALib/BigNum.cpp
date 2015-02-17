@@ -10,27 +10,9 @@ BigNum::BigNum()
 
 BigNum::BigNum( DWORD numDigits, BYTE* num /*= NULL*/, bool reverseOrder /*= true*/ )
 {
-	this->numDigits = numDigits;
-	this->allocatedBytes = (numDigits + 1) / 2;
-
-	if( numDigits > 0 )
-		this->num = (BYTE*) calloc( allocatedBytes, 1 );
-	else
-		this->num = NULL;
-	
-	if( num != NULL && numDigits > 0 )
-	{
-		if( reverseOrder )
-			memcpy( this->num, num, numDigits );
-		else
-		{
-			for( DWORD i = 0; i < allocatedBytes; i++ )
-			{
-				BYTE b = num[allocatedBytes - 1];
-				this->num[i] = ((b & 0x0F) << 4) | ((b & 0xF0) >> 4);
-			}
-		}
-	}
+	this->numDigits = this->allocatedBytes = 0;
+	this->num = NULL;
+	initialize( numDigits, num, reverseOrder );
 }
 
 BigNum::BigNum( const BigNum& other )
@@ -66,21 +48,69 @@ BigNum::~BigNum()
 	this->allocatedBytes = 0;
 }
 
+void BigNum::initialize( DWORD numDigits, BYTE* num /*= NULL*/, bool reverseOrder /*= true */ )
+{
+	this->numDigits = numDigits;
+	this->allocatedBytes = 0;
+	if( this->num != NULL )
+		free( this->num );
+
+	if( numDigits > 0 )
+	{
+		this->allocatedBytes = (numDigits + 1) / 2;
+		this->num = (BYTE*) calloc( allocatedBytes, 1 );
+	}
+	else
+		this->num = NULL;
+
+	if( num != NULL && numDigits > 0 )
+	{
+//		this->numDigits = numDigits;
+		if( reverseOrder )
+			memcpy( this->num, num, numDigits );
+		else
+		{
+			for( DWORD i = 0; i < allocatedBytes; i++ )
+			{
+				BYTE b = num[allocatedBytes - 1];
+				this->num[i] = ((b & 0x0F) << 4) | ((b & 0xF0) >> 4);
+			}
+		}
+	}
+}
+
 bool BigNum::operator>(BigNum& other)
 {
 	this->validateNumDigits();
 	other.validateNumDigits();
 	if( this->numDigits > other.numDigits )
 		return true;
-	else if( this->numDigits <= other.numDigits )
+	else if( this->numDigits < other.numDigits )
+		return false;
+	else if( this->numDigits == 0 && other.numDigits == 0 )
 		return false;
 
-	// Same number of digits, so let's see which number is bigger
-	for( int i = 0; i < (int) this->allocatedBytes; i++ )
+// 	// Same number of digits, so let's see which number is bigger
+// 	for( int i = this->numDigits; i > 0; i-- )
+// 	{
+// 		BYTE thisNib = (i % 2 == 0 ? this->num[i / 2] & 0x0F : (this->num[i / 2] & 0xF0) << 4);
+// 		BYTE otherNib = (i % 2 == 0 ? this->num[i / 2] & 0x0F : (this->num[i / 2] & 0xF0) << 4);
+// 		if( thisNib > otherNib )
+// 			return true;
+// 		else if( thisNib < otherNib )
+// 			return false;
+// 	}
+	for( int i = (this->numDigits - 1) / 2; i >= 0; i-- )
 	{
-		if( this->num[i] > other.num[i] )
+		nibble* thisNib = (nibble*) &this->num[i];
+		nibble* otherNib = (nibble*) &other.num[i];
+		if( thisNib->nibLeast > otherNib->nibLeast )
 			return true;
-		else if( this->num[i] <= other.num[i] )
+		else if( thisNib->nibLeast < otherNib->nibLeast )
+			return false;
+		else if( thisNib->nibMost > otherNib->nibMost )
+			return true;
+		else if( thisNib->nibMost < otherNib->nibMost )
 			return false;
 	}
 	return false;
@@ -92,15 +122,23 @@ bool BigNum::operator<(BigNum& other)
 	other.validateNumDigits();
 	if( this->numDigits < other.numDigits )
 		return true;
-	else if( this->numDigits >= other.numDigits )
+	else if( this->numDigits > other.numDigits )
+		return false;
+	else if( this->numDigits == 0 && other.numDigits == 0 )
 		return false;
 
 	// Same number of digits, so let's see which number is bigger
-	for( int i = 0; i < (int) this->allocatedBytes; i++ )
+	for( int i = (this->numDigits - 1) / 2; i >= 0; i-- )
 	{
-		if( this->num[i] < other.num[i] )
+		nibble* thisNib = (nibble*) &this->num[i];
+		nibble* otherNib = (nibble*) &other.num[i];
+		if( thisNib->nibLeast < otherNib->nibLeast )
 			return true;
-		else if( this->num[i] >= other.num[i] )
+		else if( thisNib->nibLeast > otherNib->nibLeast )
+			return false;
+		else if( thisNib->nibMost < otherNib->nibMost )
+			return true;
+		else if( thisNib->nibMost > otherNib->nibMost )
 			return false;
 	}
 	return false;
@@ -112,9 +150,11 @@ bool BigNum::operator==(BigNum& other)
 	other.validateNumDigits();
 	if( this->numDigits != other.numDigits )
 		return false;
+	else if( this->numDigits == 0 && other.numDigits == 0 )
+		return true;
 
 	// Same number of digits, so let's see which number is bigger
-	for( int i = 0; i < (int) this->allocatedBytes; i++ )
+	for( int i = (this->numDigits - 1) / 2; i >= 0; i-- )
 	{
 		if( this->num[i] != other.num[i] )
 			return false;
@@ -126,17 +166,25 @@ bool BigNum::operator>=(BigNum& other)
 {
 	this->validateNumDigits();
 	other.validateNumDigits();
-	if( this->numDigits >= other.numDigits )
+	if( this->numDigits > other.numDigits )
 		return true;
 	else if( this->numDigits < other.numDigits )
 		return false;
+	else if( this->numDigits == 0 && other.numDigits == 0 )
+		return true;
 
 	// Same number of digits, so let's see which number is bigger
-	for( int i = 0; i < (int) this->allocatedBytes; i++ )
+	for( int i = (this->numDigits - 1) / 2; i >= 0; i-- )
 	{
-		if( this->num[i] >= other.num[i] )
+		nibble* thisNib = (nibble*) &this->num[i];
+		nibble* otherNib = (nibble*) &other.num[i];
+		if( thisNib->nibLeast > otherNib->nibLeast )
 			return true;
-		else if( this->num[i] < other.num[i] )
+		else if( thisNib->nibLeast < otherNib->nibLeast )
+			return false;
+		else if( thisNib->nibMost > otherNib->nibMost )
+			return true;
+		else if( thisNib->nibMost < otherNib->nibMost )
 			return false;
 	}
 	return true;
@@ -146,20 +194,39 @@ bool BigNum::operator<=(BigNum& other)
 {
 	this->validateNumDigits();
 	other.validateNumDigits();
-	if( this->numDigits <= other.numDigits )
+	if( this->numDigits < other.numDigits )
 		return true;
 	else if( this->numDigits > other.numDigits )
 		return false;
+	else if( this->numDigits == 0 && other.numDigits == 0 )
+		return true;
 
 	// Same number of digits, so let's see which number is bigger
-	for( int i = 0; i < (int) this->allocatedBytes; i++ )
+	for( int i = (this->numDigits - 1) / 2; i >= 0; i-- )
 	{
-		if( this->num[i] <= other.num[i] )
+		nibble* thisNib = (nibble*) &this->num[i];
+		nibble* otherNib = (nibble*) &other.num[i];
+		if( thisNib->nibLeast < otherNib->nibLeast )
 			return true;
-		else if( this->num[i] > other.num[i] )
+		else if( thisNib->nibLeast > otherNib->nibLeast )
+			return false;
+		else if( thisNib->nibMost < otherNib->nibMost )
+			return true;
+		else if( thisNib->nibMost > otherNib->nibMost )
 			return false;
 	}
 	return true;
+}
+
+BigNum& BigNum::operator=(const BigNum& other)
+{
+	this->allocatedBytes = other.allocatedBytes;
+	this->numDigits = other.numDigits;
+	if( this->num != NULL )
+		free( this->num );
+	this->num = (BYTE*) malloc( this->allocatedBytes );
+	memcpy( this->num, other.num, this->allocatedBytes );
+	return *this;
 }
 
 BigNum BigNum::operator+(const BigNum& other)
@@ -191,6 +258,13 @@ BigNum BigNum::operator+(const BigNum& other)
 		retVal.num[byteOffset] |= result;
 	}
 	return retVal;
+}
+
+BigNum& BigNum::operator+=(const BigNum& other)
+{
+	BigNum retVal = *this + other;
+	*this = retVal;
+	return *this;
 }
 
 BigNum BigNum::operator-(BigNum& other)
@@ -258,10 +332,30 @@ BigNum BigNum::operator-(BigNum& other)
 	return retVal;
 }
 
+BigNum& BigNum::operator-=(BigNum& other)
+{
+	BigNum retVal = *this - other;
+	*this = retVal;
+	return *this;
+}
 
 BigNum BigNum::operator*(const BigNum& other)
 {
-	return gradeSchoolMultiply( other );
+	return classicalMultiply( other );
+}
+
+BigNum BigNum::operator/(BigNum& other)
+{
+	BigNum quotient, remainder;
+	classicalDivide( other, quotient, remainder );
+	return quotient;
+}
+
+BigNum BigNum::operator%(BigNum& other)
+{
+	BigNum quotient, remainder;
+	classicalDivide( other, quotient, remainder );
+	return remainder;
 }
 
 /****************** Exponentiation by squaring: O((n*log(x))^k) ******************
@@ -291,7 +385,7 @@ x^3 = x*x*x
 -------- +
 26852661 <-- Add up results, remember to carry
  **************************************************************************/
-BigNum BigNum::gradeSchoolMultiply( const BigNum& other )
+BigNum BigNum::classicalMultiply( const BigNum& other )
 {
 	const BigNum* bot, *top;
 	if( this->numDigits >= other.numDigits )
@@ -350,13 +444,127 @@ BigNum BigNum::gradeSchoolMultiply( const BigNum& other )
 	return retVal;
 }
 
+void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder )
+{
+	quotient.initialize( this->numDigits );
+
+	if( other > *this )
+		return;
+	else if( other == *this )
+	{
+		quotient.num[0] = 1;
+		quotient.numDigits = 1;
+		return;
+	}
+
+	nibble* nextNumDigit = (nibble*) (this->num + (this->numDigits - 1) / 2);
+	bool nextNumDigitLeast = this->numDigits % 2 == 0 ? true : false;
+
+ 	// For EACH digit in the numerator/dividend...
+	BigNum dividendWorkingSet( this->numDigits );
+	BigNum multiple;
+	for( int i = 0, k = this->numDigits - 1; i < this->numDigits; i++, k-- )
+	{
+		// Let's bring the next digit to the dividendWorkingSet:
+		dividendWorkingSet.validateNumDigits();
+		if( dividendWorkingSet.numDigits == 0 )
+		{
+			dividendWorkingSet.num[0] = (nextNumDigitLeast ? nextNumDigit->nibLeast : nextNumDigit->nibMost) << 4;
+			dividendWorkingSet.numDigits = 1;
+			nextNumDigitLeast = !nextNumDigitLeast;
+		}
+		else
+		{
+			// This is no joke, we need to move everything down one nibble so I can set the most significant nibble >.>
+			BYTE nextDigit = nextNumDigitLeast ? nextNumDigit->nibLeast : nextNumDigit->nibMost;
+			for( int j = 0; j <= (dividendWorkingSet.numDigits + 1) / 2; j++ )
+			{
+				nibble* next = (nibble*)&dividendWorkingSet.num[j];
+				BYTE prev = next->nibMost;
+				next->nibMost = nextDigit;
+				nextDigit = next->nibLeast;
+				next->nibLeast = prev;
+			}
+			dividendWorkingSet.numDigits++;
+			nextNumDigitLeast = !nextNumDigitLeast;
+			if( nextNumDigitLeast == true )
+				nextNumDigit--;
+		}
+
+		if( other > dividendWorkingSet )
+			continue;
+		else if( dividendWorkingSet == other )
+		{
+			quotient.num[k / 2] |= ((k % 2 == 0) ? 1 << 4 : 1);
+			dividendWorkingSet.numDigits = 0;
+		}
+		else
+		{
+			multiple = other;
+			for( int j = 1; j < base; j++, multiple += other )
+			{
+				if( multiple + other > dividendWorkingSet )
+				{
+					quotient.num[k / 2] |= ((k % 2 == 0) ? j << 4 : j );
+					dividendWorkingSet -= multiple;
+					break;
+				}
+			}
+		}
+	}
+	remainder = dividendWorkingSet;
+
+// 	// For EACH digit in the numerator/dividend...
+// 	// BUT, let's just skip ahead and grab the same number of digits denominator/divisor
+// 	remainder = *this;
+// 	BigNum dividendWorkingSet( this->numDigits );
+// 	BigNum multiple;
+// 	for( int k = this->numDigits; remainder > other; dividendWorkingSet.numDigits = 0 )
+// 	{
+// 		// Let's get the working set larger than the remainder
+// 		for( int i = other.numDigits; i < (int) remainder.numDigits && other > dividendWorkingSet; i++ )
+// 		{
+// 			dividendWorkingSet.numDigits = i;
+// 			memcpy( dividendWorkingSet.num, remainder.num, (i / 2) + 1 );
+// 		}
+// 
+// 		multiple = other;
+// 		for( int j = 1; j < base; j++, multiple+=multiple )
+// 		{
+// 			if( multiple + other > dividendWorkingSet )
+// 			{
+// 				quotient.num[k / 2] |= ((k % 2 == 0) ? j << 4 : j );
+// 				remainder -= multiple;
+// 				k++;
+// 				break;
+// 			}
+// 		}
+// 	}
+}
+
 void BigNum::validateNumDigits()
 {
-	for( int i = numDigits; i > 0; i-- )
+	// ensures numDigits is correct
+	for( int i = numDigits - 1; i >= 0; i-- )
 	{
-		if( (((i + 1) % 2) == 0 ? (num[i / 2] & 0xF0) >> 4 : num[i / 2] & 0x0F) == 0 )
+		if( ((i % 2) == 0 ? (num[i / 2] & 0xF0) >> 4 : num[i / 2] & 0x0F) == 0 )
 			numDigits--;
 		else
 			break;
 	}
+
+	// Should we also clear the rest that isn't in the numDigits?
+	if( numDigits % 2 != 0 )
+		num[numDigits / 2] &= 0xF0;
+	unsigned short extraClears = allocatedBytes - ((numDigits + 1) / 2);
+	if( extraClears > 0 )
+		SecureZeroMemory( num + ((numDigits + 1) / 2), extraClears );
+}
+
+void BigNum::clear()
+{
+	allocatedBytes = numDigits = 0;
+	if( num != NULL )
+		free( num );
+	num = NULL;
 }
