@@ -162,6 +162,11 @@ bool BigNum::operator==(BigNum& other)
 	return true;
 }
 
+// bool BigNum::operator==(ULONGLONG& other)
+// {
+// 
+// }
+
 bool BigNum::operator>=(BigNum& other)
 {
 	this->validateNumDigits();
@@ -363,17 +368,19 @@ x^15 = (x^7)*(x^7)*x
 x^7 = (x^3)*(x^3)*x
 x^3 = x*x*x
 **************************************************************************/
-// BigNum BigNum::operator^(const BigNum& other)
-// {
-// 	if( other.numDigits == 0 )
-// 		return 1;
-// 	if( other.numDigits == 1 && other.num[0] == 1 )
-// 		return *this;
-// 	if( other % 2 == 0 )
-// 		return (*this * *this) ^ other / 2;
-// 	else
-// 
-// }
+BigNum BigNum::operator^(BigNum& other)
+{
+	BigNum zero( "0" );
+	BigNum one( "1" );
+	BigNum two( "2" );
+	if( other.numDigits == 0 )
+		return 1;
+	if( other == one )
+		return *this;
+
+	BigNum halved = *this ^ (other / two);
+	return other % two == zero ? halved * halved : halved * halved * *this;
+}
 
 /****************** Elementary method for multiplication: O(n^2) ******************
    43241
@@ -452,7 +459,7 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
 		return;
 	else if( other == *this )
 	{
-		quotient.num[0] = 1;
+		quotient.num[0] = 1 << 4;
 		quotient.numDigits = 1;
 		return;
 	}
@@ -477,7 +484,8 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
 		{
 			// This is no joke, we need to move everything down one nibble so I can set the most significant nibble >.>
 			BYTE nextDigit = nextNumDigitLeast ? nextNumDigit->nibLeast : nextNumDigit->nibMost;
-			for( int j = 0; j <= (dividendWorkingSet.numDigits + 1) / 2; j++ )
+//			for( int j = 0; j <= (dividendWorkingSet.numDigits + 1) / 2; j++ )
+			for( int j = 0; j <= (dividendWorkingSet.numDigits) / 2; j++ )
 			{
 				nibble* next = (nibble*)&dividendWorkingSet.num[j];
 				BYTE prev = next->nibMost;

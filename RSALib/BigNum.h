@@ -16,6 +16,7 @@ public:
 	bool operator>(BigNum& other);
 	bool operator<(BigNum& other);
 	bool operator==(BigNum& other);
+	bool operator==(ULONGLONG& other);
 	bool operator>=(BigNum& other);
 	bool operator<=(BigNum& other);
 	BigNum& operator=(const BigNum& other);
@@ -26,9 +27,10 @@ public:
 	BigNum operator*(const BigNum& other);
 	BigNum operator/(BigNum& other);
 	BigNum operator%(BigNum& other);
-	BigNum operator^(const BigNum& other);
+	BigNum operator^(BigNum& other);
 
 	void clear();
+	ULONGLONG toULL();
 
 protected:
 	DWORD numDigits; // Total number of digits starting with 1. May include zeros at the beginning
