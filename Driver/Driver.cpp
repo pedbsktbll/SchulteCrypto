@@ -21,6 +21,11 @@ int wmain( int argc, wchar_t* argv[] )
 	BigNum b( "26d" );
 	BigNum c = a + b;
 	BigNum d = a * b;
+	BigNum e = a - b;
+
+	BigNum f( "1000000000" );
+	BigNum g( "1" );
+	BigNum h = f - g;
 
 // 	BYTE chars[] = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
 // 	char* encoded;

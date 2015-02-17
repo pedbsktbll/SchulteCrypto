@@ -66,6 +66,102 @@ BigNum::~BigNum()
 	this->allocatedBytes = 0;
 }
 
+bool BigNum::operator>(BigNum& other)
+{
+	this->validateNumDigits();
+	other.validateNumDigits();
+	if( this->numDigits > other.numDigits )
+		return true;
+	else if( this->numDigits <= other.numDigits )
+		return false;
+
+	// Same number of digits, so let's see which number is bigger
+	for( int i = 0; i < (int) this->allocatedBytes; i++ )
+	{
+		if( this->num[i] > other.num[i] )
+			return true;
+		else if( this->num[i] <= other.num[i] )
+			return false;
+	}
+	return false;
+}
+
+bool BigNum::operator<(BigNum& other)
+{
+	this->validateNumDigits();
+	other.validateNumDigits();
+	if( this->numDigits < other.numDigits )
+		return true;
+	else if( this->numDigits >= other.numDigits )
+		return false;
+
+	// Same number of digits, so let's see which number is bigger
+	for( int i = 0; i < (int) this->allocatedBytes; i++ )
+	{
+		if( this->num[i] < other.num[i] )
+			return true;
+		else if( this->num[i] >= other.num[i] )
+			return false;
+	}
+	return false;
+}
+
+bool BigNum::operator==(BigNum& other)
+{
+	this->validateNumDigits();
+	other.validateNumDigits();
+	if( this->numDigits != other.numDigits )
+		return false;
+
+	// Same number of digits, so let's see which number is bigger
+	for( int i = 0; i < (int) this->allocatedBytes; i++ )
+	{
+		if( this->num[i] != other.num[i] )
+			return false;
+	}
+	return true;
+}
+
+bool BigNum::operator>=(BigNum& other)
+{
+	this->validateNumDigits();
+	other.validateNumDigits();
+	if( this->numDigits >= other.numDigits )
+		return true;
+	else if( this->numDigits < other.numDigits )
+		return false;
+
+	// Same number of digits, so let's see which number is bigger
+	for( int i = 0; i < (int) this->allocatedBytes; i++ )
+	{
+		if( this->num[i] >= other.num[i] )
+			return true;
+		else if( this->num[i] < other.num[i] )
+			return false;
+	}
+	return true;
+}
+
+bool BigNum::operator<=(BigNum& other)
+{
+	this->validateNumDigits();
+	other.validateNumDigits();
+	if( this->numDigits <= other.numDigits )
+		return true;
+	else if( this->numDigits > other.numDigits )
+		return false;
+
+	// Same number of digits, so let's see which number is bigger
+	for( int i = 0; i < (int) this->allocatedBytes; i++ )
+	{
+		if( this->num[i] <= other.num[i] )
+			return true;
+		else if( this->num[i] > other.num[i] )
+			return false;
+	}
+	return true;
+}
+
 BigNum BigNum::operator+(const BigNum& other)
 {
 	BigNum retVal( (this->numDigits > other.numDigits ? this->numDigits : other.numDigits) + 1 );
@@ -97,18 +193,95 @@ BigNum BigNum::operator+(const BigNum& other)
 	return retVal;
 }
 
+BigNum BigNum::operator-(BigNum& other)
+{
+	BigNum me( *this );
+	BigNum retVal( me.numDigits );
+	
+	if( other >= me )
+		return retVal;
+
+	bool firstNibble = true;
+	for( int result = 0, i = 0, byteOffset = 0; i < (int) retVal.numDigits;
+		i++, firstNibble = !firstNibble, firstNibble ? byteOffset++ : 0 )
+	{
+		BYTE a = me.num[byteOffset];
+		BYTE b = i < (int) other.numDigits ? other.num[byteOffset] : 0;
+		if( firstNibble )
+		{
+			// Then we're doing the first nibble (most significant bit)
+			a = (a & 0xF0) >> 4;
+			b = (b & 0xF0) >> 4;
+		}
+		else
+		{
+			// Then we're doing the second nibble (least significant bit)
+			a &= 0x0F;
+			b &= 0x0F;
+		}
+
+		// We gotsta borrow! FUCK!
+		if( a < b )
+		{
+			// Find me some digits to use!
+			for( int j = i + 1; j < (int) me.numDigits; j++ )
+			{
+				nibble* myNibs = (nibble*) &me.num[j / 2];
+				if( j % 2 == 0 )
+				{
+					if( myNibs->nibMost != 0 )
+					{
+						myNibs->nibMost--;
+						break;
+					}
+					else
+						myNibs->nibMost = base - 1;
+				}
+				else
+				{
+					if( myNibs->nibLeast != 0 )
+					{
+						myNibs->nibLeast--;
+						break;
+					}
+					else
+						myNibs->nibLeast = base - 1;
+				}
+			}
+			a += base;
+		}
+
+		result = a - b;
+		result = (firstNibble ? result << 4 : result );
+		retVal.num[byteOffset] |= result;
+	}
+	return retVal;
+}
+
+
 BigNum BigNum::operator*(const BigNum& other)
 {
 	return gradeSchoolMultiply( other );
 }
 
+/****************** Exponentiation by squaring: O((n*log(x))^k) ******************
+x^15 = (x^7)*(x^7)*x
+x^7 = (x^3)*(x^3)*x
+x^3 = x*x*x
+**************************************************************************/
 // BigNum BigNum::operator^(const BigNum& other)
 // {
+// 	if( other.numDigits == 0 )
+// 		return 1;
+// 	if( other.numDigits == 1 && other.num[0] == 1 )
+// 		return *this;
+// 	if( other % 2 == 0 )
+// 		return (*this * *this) ^ other / 2;
+// 	else
 // 
 // }
 
-/****************** Elementary method for multiplication ******************
-			Method is O(n^2)
+/****************** Elementary method for multiplication: O(n^2) ******************
    43241
      621
    ----- *
@@ -175,4 +348,15 @@ BigNum BigNum::gradeSchoolMultiply( const BigNum& other )
 
 	free( resultArr );
 	return retVal;
+}
+
+void BigNum::validateNumDigits()
+{
+	for( int i = numDigits; i > 0; i-- )
+	{
+		if( (((i + 1) % 2) == 0 ? (num[i / 2] & 0xF0) >> 4 : num[i / 2] & 0x0F) == 0 )
+			numDigits--;
+		else
+			break;
+	}
 }
