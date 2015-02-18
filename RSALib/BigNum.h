@@ -12,6 +12,7 @@ public:
 	BigNum( const BigNum& other );
 	~BigNum();
 	void initialize( DWORD numDigits, BYTE* num = NULL, bool reverseOrder = true );//, bool positive = true );
+	void initialize( char* num );
 
 	bool operator>(BigNum& other);
 	bool operator<(BigNum& other);
@@ -31,6 +32,7 @@ public:
 
 	void clear();
 	ULONGLONG toULL();
+	void increaseCapacity( DWORD totalBytes );
 
 protected:
 	DWORD numDigits; // Total number of digits starting with 1. May include zeros at the beginning

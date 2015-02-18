@@ -11,16 +11,13 @@ public:
 	virtual bool setKey( const char* buff, DWORD buffSize );
 
 	// RSAEP
-	bool cipher();
+	BigNum cipher(BigNum& plainText);
 
 	// RSAVP1
 	bool verify();
 
-protected:
-	BYTE* modulus; // 'n'
-	BYTE* publicExponent; // 'e'
-
-	DWORD modulusSize;
-	DWORD publicExponentSize;
+//protected:
+	BigNum modulus; // 'n'
+	BigNum publicExponent; // 'e'
 };
 

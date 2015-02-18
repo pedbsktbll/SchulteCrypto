@@ -1,5 +1,6 @@
 #pragma once
 #include <Windows.h>
+#include "BigNum.h"
 
 class RSAKey
 {
@@ -56,7 +57,7 @@ protected:
 
 	bool eliminateHeader( const char*& buff, DWORD& buffSize );
 	bool readDER_TLV( BYTE*& dataPtr, DER_TLV& der );
-	void setDER_Values( DER_TLV& der, BYTE*& param, DWORD& paramSize );
+//	void setDER_Values( DER_TLV& der, BigNum& param );
 
 //private:
 	static const char base64chars[];

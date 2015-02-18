@@ -4,47 +4,47 @@
 RSAPrivateKey::RSAPrivateKey()
 {
 	version = 0;
-	modulus = publicExponent = privateExponent = prime1 = prime2 = exponent1 = exponent2 = coefficient = otherPrimeInfos = NULL;
+/*	modulus = publicExponent = privateExponent = prime1 = prime2 = exponent1 = exponent2 = coefficient = otherPrimeInfos = NULL;*/
 }
 
 
 RSAPrivateKey::~RSAPrivateKey()
 {
-	if( modulus != NULL )
-		delete[] modulus;
-	modulusSize = 0;
-
-	if( modulus != NULL )
-		delete[] publicExponent;
-	publicExponentSize = 0;
-
-	if( privateExponent != NULL )
-		delete[] privateExponent;
-	privateExponentSize = 0;
-
-	if( prime1 != NULL )
-		delete[] prime1;
-	prime1Size = 0;
-
-	if( prime2 != NULL )
-		delete[] prime2;
-	prime2Size = 0;
-
-	if( exponent1 != NULL )
-		delete[] exponent1;
-	exponent1Size = 0;
-
-	if( exponent2 != NULL )
-		delete[] exponent2;
-	exponent2Size = 0;
-
-	if( coefficient != NULL )
-		delete[] coefficient;
-	coefficientSize = 0;
-
-	if( otherPrimeInfos != NULL )
-		delete[] otherPrimeInfos;
-	otherPrimeInfos = 0;
+// 	if( modulus != NULL )
+// 		delete[] modulus;
+// 	modulusSize = 0;
+// 
+// 	if( modulus != NULL )
+// 		delete[] publicExponent;
+// 	publicExponentSize = 0;
+// 
+// 	if( privateExponent != NULL )
+// 		delete[] privateExponent;
+// 	privateExponentSize = 0;
+// 
+// 	if( prime1 != NULL )
+// 		delete[] prime1;
+// 	prime1Size = 0;
+// 
+// 	if( prime2 != NULL )
+// 		delete[] prime2;
+// 	prime2Size = 0;
+// 
+// 	if( exponent1 != NULL )
+// 		delete[] exponent1;
+// 	exponent1Size = 0;
+// 
+// 	if( exponent2 != NULL )
+// 		delete[] exponent2;
+// 	exponent2Size = 0;
+// 
+// 	if( coefficient != NULL )
+// 		delete[] coefficient;
+// 	coefficientSize = 0;
+// 
+// 	if( otherPrimeInfos != NULL )
+// 		delete[] otherPrimeInfos;
+// 	otherPrimeInfos = 0;
 }
 
 /****** BEGIN RSA PRIVATE KEY Format***********
@@ -91,50 +91,66 @@ bool RSAPrivateKey::setKey( const char* buff, DWORD buffSize )
 	// Expect modulus
 	if( !readDER_TLV( dataPtr, der ) || der.tag.tag != INTEGER )
 		return false;
-	setDER_Values( der, modulus, modulusSize );
+//	setDER_Values( der, modulus, modulusSize );
+	modulus.initialize( der.length, der.value );
 	dataPtr += der.length;
 
 	// Expect public exponent
 	if( !readDER_TLV( dataPtr, der ) || der.tag.tag != INTEGER )
 		return false;
-	setDER_Values( der, publicExponent, publicExponentSize );
+//	setDER_Values( der, publicExponent, publicExponentSize );
+	publicExponent.initialize( der.length, der.value );
 	dataPtr += der.length;
 
 	// Expect private exponent
 	if( !readDER_TLV( dataPtr, der ) || der.tag.tag != INTEGER )
 		return false;
-	setDER_Values( der, privateExponent, privateExponentSize );
+//	setDER_Values( der, privateExponent, privateExponentSize );
+	privateExponent.initialize( der.length, der.value );
 	dataPtr += der.length;
 
 	// Expect prime1
 	if( !readDER_TLV( dataPtr, der ) || der.tag.tag != INTEGER )
 		return false;
-	setDER_Values( der, prime1, prime1Size );
+//	setDER_Values( der, prime1, prime1Size );
+	prime1.initialize( der.length, der.value );
 	dataPtr += der.length;
 
 	// Expect prime2
 	if( !readDER_TLV( dataPtr, der ) || der.tag.tag != INTEGER )
 		return false;
-	setDER_Values( der, prime2, prime2Size );
+//	setDER_Values( der, prime2, prime2Size );
+	prime2.initialize( der.length, der.value );
 	dataPtr += der.length;
 
 	// Expect exponent1
 	if( !readDER_TLV( dataPtr, der ) || der.tag.tag != INTEGER )
 		return false;
-	setDER_Values( der, exponent1, exponent1Size );
+//	setDER_Values( der, exponent1, exponent1Size );
+	exponent1.initialize( der.length, der.value );
 	dataPtr += der.length;
 
 	// Expect exponent2
 	if( !readDER_TLV( dataPtr, der ) || der.tag.tag != INTEGER )
 		return false;
-	setDER_Values( der, exponent2, exponent2Size );
+//	setDER_Values( der, exponent2, exponent2Size );
+	exponent2.initialize( der.length, der.value );
 	dataPtr += der.length;
 
 	// Expect coefficient
 	if( !readDER_TLV( dataPtr, der ) || der.tag.tag != INTEGER )
 		return false;
-	setDER_Values( der, coefficient, coefficientSize );
+//	setDER_Values( der, coefficient, coefficientSize );
+	coefficient.initialize( der.length, der.value );
 	dataPtr += der.length;
 
 	return true;
+}
+
+BigNum RSAPrivateKey::decipher( BigNum& cipherText )
+{
+//	return (cipherText ^ privateExponent) % modulus;
+	BigNum a = cipherText ^ privateExponent;
+	BigNum b = a % modulus;
+	return b;
 }

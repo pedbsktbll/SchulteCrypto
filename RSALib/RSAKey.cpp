@@ -192,8 +192,9 @@ bool RSAKey::readDER_TLV( BYTE*& dataPtr, DER_TLV& der )
 	return true;
 }
 
-void RSAKey::setDER_Values( DER_TLV& der, BYTE*& param, DWORD& paramSize )
-{
-	param = new BYTE[paramSize = der.length];
-	memcpy( param, der.value, der.length );
-}
+// void RSAKey::setDER_Values( DER_TLV& der, BigNum& param )
+// {
+// 	param.initialize()
+// 	param = new BYTE[paramSize = der.length];
+// 	memcpy( param, der.value, der.length );
+// }

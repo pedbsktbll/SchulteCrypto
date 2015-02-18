@@ -3,20 +3,20 @@
 
 RSAPublicKey::RSAPublicKey()
 {
-	modulus = publicExponent = NULL;
-	modulusSize = publicExponentSize = 0;
+// 	modulus = publicExponent = NULL;
+// 	modulusSize = publicExponentSize = 0;
 }
 
 
 RSAPublicKey::~RSAPublicKey()
 {
-	if( modulus != NULL )
-		delete[] modulus;
-	modulusSize = 0;
-
-	if( publicExponent != NULL )
-		delete[] publicExponent;
-	publicExponentSize = 0;
+// 	if( modulus != NULL )
+// 		delete[] modulus;
+// 	modulusSize = 0;
+// 
+// 	if( publicExponent != NULL )
+// 		delete[] publicExponent;
+// 	publicExponentSize = 0;
 }
 
 /****** BEGIN RSA PUBLIC KEY Format***********
@@ -49,14 +49,24 @@ bool RSAPublicKey::setKey( const char* buff, DWORD buffSize )
 	// Expect modulus
 	if( !readDER_TLV( dataPtr, der ) || der.tag.tag != INTEGER )
 		return false;
-	setDER_Values( der, modulus, modulusSize );
+//	setDER_Values( der, modulus, modulusSize );
+	modulus.initialize( der.length, der.value );
 	dataPtr += der.length;
 
 	// Expect publicExponent
 	if( !readDER_TLV( dataPtr, der ) || der.tag.tag != INTEGER )
 		return false;
-	setDER_Values( der, publicExponent, publicExponentSize );
+//	setDER_Values( der, publicExponent, publicExponentSize );
+	publicExponent.initialize( der.length, der.value );
 	dataPtr += der.length;
 
 	return true;
+}
+
+BigNum RSAPublicKey::cipher( BigNum& plainText )
+{
+//	return (plainText ^ this->publicExponent) % this->modulus;
+	BigNum a = plainText ^ publicExponent;
+	BigNum b = a % modulus;
+	return b;
 }

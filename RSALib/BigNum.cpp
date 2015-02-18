@@ -30,14 +30,9 @@ BigNum::BigNum( const BigNum& other )
 
 BigNum::BigNum( char* num )
 {
-	this->numDigits = strlen( num );
-	this->allocatedBytes = (numDigits + 1) / 2;
-	this->num = (BYTE*) calloc( allocatedBytes, 1 );
-	for( int i = numDigits - 1, j = 0; i >= 0; i--, j++ )
-	{
-		BYTE b = isalpha( num[i] ) ? tolower( num[i] ) - 'a' + 10 : num[i] - '0';
-		this->num[j / 2] |= (j % 2 == 0 ? b << 4 : b);
-	}
+	this->numDigits = this->allocatedBytes = 0;
+	this->num = NULL;
+	initialize( num );
 }
 
 BigNum::~BigNum()
@@ -76,6 +71,18 @@ void BigNum::initialize( DWORD numDigits, BYTE* num /*= NULL*/, bool reverseOrde
 				this->num[i] = ((b & 0x0F) << 4) | ((b & 0xF0) >> 4);
 			}
 		}
+	}
+}
+
+void BigNum::initialize( char* num )
+{
+	this->numDigits = strlen( num );
+	this->allocatedBytes = (numDigits + 1) / 2;
+	this->num = (BYTE*) calloc( allocatedBytes, 1 );
+	for( int i = numDigits - 1, j = 0; i >= 0; i--, j++ )
+	{
+		BYTE b = isalpha( num[i] ) ? tolower( num[i] ) - 'a' + 10 : num[i] - '0';
+		this->num[j / 2] |= (j % 2 == 0 ? b << 4 : b);
 	}
 }
 
@@ -239,7 +246,7 @@ BigNum BigNum::operator+(const BigNum& other)
 	BigNum retVal( (this->numDigits > other.numDigits ? this->numDigits : other.numDigits) + 1 );
 	
 	bool firstNibble = true;
-	for( int carry = 0, result = 0, i = 0, byteOffset = 0; i < (int) retVal.numDigits - 1;
+	for( int carry = 0, result = 0, i = 0, byteOffset = 0; i < (int) retVal.numDigits;
 		i++, firstNibble = !firstNibble, firstNibble ? byteOffset++ : 0 )
 	{
 		BYTE a = i < (int) this->numDigits ? this->num[byteOffset] : 0;
@@ -453,6 +460,8 @@ BigNum BigNum::classicalMultiply( const BigNum& other )
 
 void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder )
 {
+	this->validateNumDigits();
+	other.validateNumDigits();
 	quotient.initialize( this->numDigits );
 
 	if( other > *this )
@@ -515,6 +524,7 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
 				{
 					quotient.num[k / 2] |= ((k % 2 == 0) ? j << 4 : j );
 					dividendWorkingSet -= multiple;
+					dividendWorkingSet.increaseCapacity( this->allocatedBytes );
 					break;
 				}
 			}
@@ -575,4 +585,10 @@ void BigNum::clear()
 	if( num != NULL )
 		free( num );
 	num = NULL;
+}
+
+void BigNum::increaseCapacity( DWORD totalBytes )
+{
+	realloc( this->num, totalBytes );
+	this->allocatedBytes = totalBytes;
 }
