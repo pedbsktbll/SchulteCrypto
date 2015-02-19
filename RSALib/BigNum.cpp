@@ -269,6 +269,7 @@ BigNum BigNum::operator+(const BigNum& other)
 		result = ( firstNibble ? (result % base) << 4 : (result % base) );
 		retVal.num[byteOffset] |= result;
 	}
+	retVal.validateNumDigits();
 	return retVal;
 }
 
@@ -386,6 +387,11 @@ BigNum BigNum::operator^(BigNum& other)
 		return *this;
 
 	BigNum halved = *this ^ (other / two);
+
+	DWORD d = halved.numDigits + 1;
+	char* arr = new char[d];
+	halved.toArray( arr, d );
+
 	return other % two == zero ? halved * halved : halved * halved * *this;
 }
 
@@ -415,12 +421,18 @@ BigNum BigNum::classicalMultiply( const BigNum& other )
 
 	DWORD numDigitsPerSingle = top->numDigits + 1;//log10( (double) top->numDigits );
 	DWORD numBytesPerSingle = (numDigitsPerSingle + 1) / 2;
-	BYTE* resultArr = (BYTE*) calloc( bot->numDigits, numBytesPerSingle );
+	BigNum* resultArr = new BigNum[bot->numDigits];
 	
 	// Multiplies everything out
-	for( int i = 0, bByteOffset = 0, carry = 0, bFirstNibble = true; i < (int) bot->numDigits;
+	for( int i = 0, bByteOffset = 0, carry = 0, arrNumDigits = 0, bFirstNibble = true; i < (int) bot->numDigits;
 		i++, bFirstNibble = !bFirstNibble, bFirstNibble ? bByteOffset++ : 0 )
 	{
+		// Initialize BigNum for this specific bottom digit
+		resultArr[i].initialize( top->numDigits + bot->numDigits );
+		arrNumDigits = 0;
+		for( int j = 0; j < i; j++ )
+			arrNumDigits++;
+
 		int b = (bFirstNibble ? (bot->num[bByteOffset] & 0xF0) >> 4 : bot->num[bByteOffset] & 0x0F);
 		carry = 0;
 		for( int j = 0, tByteOffset = 0, result = 0, tFirstNibble = true; j < (int) top->numDigits;
@@ -429,32 +441,21 @@ BigNum BigNum::classicalMultiply( const BigNum& other )
 			int t = (tFirstNibble ? (top->num[tByteOffset] & 0xF0) >> 4 : top->num[tByteOffset] & 0x0F);
 			result = t * b + carry;
 			carry = result / base;
-			result = ( tFirstNibble ? (result % base) << 4 : (result % base));
-			resultArr[i * numBytesPerSingle + tByteOffset] |= result;
+			result = ((arrNumDigits % 2 == 0) ? (result % base) << 4 : (result % base));
+			resultArr[i].num[arrNumDigits++ / 2] |= result;
 		}
 		// Hmm, I could maybe group this into the for-loop...
-		carry = ((top->numDigits % 2 == 0 ) ? (carry % base) << 4 : (carry % base));
-		resultArr[i * numBytesPerSingle + numBytesPerSingle - 1] |= carry;
+		carry = ((arrNumDigits % 2 == 0) ? (carry % base) << 4 : (carry % base));
+		resultArr[i].num[arrNumDigits++ / 2] |= carry;
+		resultArr[i].numDigits = arrNumDigits;
 	}
 
 	// Now time to add them all! This is an optimized add which is why we dont use BigNum+
 	BigNum retVal( bot->numDigits + top->numDigits );
-	for( int k = 0, result = 0, carry = 0; k < (int) retVal.numDigits; k++ )
-	{
-		result = carry;
-		for( int l = 0, bitNum = k - l; l < (int) bot->numDigits && l <= k; l++, bitNum = k - l )
-		{
-			if( bitNum >= (int) numDigitsPerSingle )
-				continue;
-			result += ((bitNum % 2 == 0) ? (resultArr[l * numBytesPerSingle + bitNum / 2] & 0xF0) >> 4 :
-				(resultArr[l * numBytesPerSingle + bitNum / 2] & 0x0F));
-		}
-		carry = result / base;
-		result = ((k % 2 == 0) ? (result % base) << 4 : (result % base));
-		retVal.num[k / 2] |= result;
-	}
+	for( int i = 0; i < bot->numDigits; i++ )
+		retVal += resultArr[i];
 
-	free( resultArr );
+	delete [] resultArr;
 	return retVal;
 }
 
@@ -487,7 +488,6 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
 		{
 			dividendWorkingSet.num[0] = (nextNumDigitLeast ? nextNumDigit->nibLeast : nextNumDigit->nibMost) << 4;
 			dividendWorkingSet.numDigits = 1;
-			nextNumDigitLeast = !nextNumDigitLeast;
 		}
 		else
 		{
@@ -503,10 +503,10 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
 				next->nibLeast = prev;
 			}
 			dividendWorkingSet.numDigits++;
-			nextNumDigitLeast = !nextNumDigitLeast;
-			if( nextNumDigitLeast == true )
-				nextNumDigit--;
 		}
+		nextNumDigitLeast = !nextNumDigitLeast;
+		if( nextNumDigitLeast == true )
+			nextNumDigit--;
 
 		if( other > dividendWorkingSet )
 			continue;

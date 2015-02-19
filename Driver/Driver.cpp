@@ -18,6 +18,7 @@ bool testAES( BYTE* input, DWORD inputSize, BYTE* key, DWORD keySize, BYTE* expe
 
 int wmain( int argc, wchar_t* argv[] )
 {
+	Sleep( 1000 * 10 );
 // 	return DriverRSA();
 // 	BigNum a( "a8e9" );
 // 	BigNum b( "26d" );
@@ -49,7 +50,7 @@ int wmain( int argc, wchar_t* argv[] )
 
 
 	BigNum a( "AE6" );
-	BigNum b( "100" );//"AC1" );
+	BigNum b( "AC1" );
 	BigNum c = a ^ b;
 
 	DWORD d = c.numDigits + 1;
