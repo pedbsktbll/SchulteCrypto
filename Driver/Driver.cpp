@@ -18,30 +18,45 @@ bool testAES( BYTE* input, DWORD inputSize, BYTE* key, DWORD keySize, BYTE* expe
 
 int wmain( int argc, wchar_t* argv[] )
 {
-	return DriverRSA();
-	BigNum a( "a8e9" );
-	BigNum b( "26d" );
-	BigNum c = a + b;
-	BigNum d = a * b;
-	BigNum e = a - b;
+// 	return DriverRSA();
+// 	BigNum a( "a8e9" );
+// 	BigNum b( "26d" );
+// 	BigNum c = a + b;
+// 	BigNum d = a * b;
+// 	BigNum e = a - b;
+// 
+// 	BigNum f( "1000000000" );
+// 	BigNum g( "1" );
+// 	BigNum h = f - g;
+// 
+// 	BigNum i = a / b;
+// 	BigNum j = a % b;
+// 
+// 	BigNum temp( "10" );
+// 	BigNum k = a ^ temp;
+// 
+// 	BigNum l( "a" );
+// 	BigNum m = l ^ l;
+// 
+// 	BigNum n( "534cebf2379da8eb9456a88441" );
+// 	BigNum o( "ca1" );
+// 	BigNum p = n / o;
+// 	BigNum q = n % o;
 
-	BigNum f( "1000000000" );
-	BigNum g( "1" );
-	BigNum h = f - g;
+// 	BigNum a1( "100" );
+// 	BigNum a2( "100" );
+// 	BigNum a3 = a1 * a2;
 
-	BigNum i = a / b;
-	BigNum j = a % b;
 
-	BigNum temp( "10" );
-	BigNum k = a ^ temp;
+	BigNum a( "AE6" );
+	BigNum b( "100" );//"AC1" );
+	BigNum c = a ^ b;
 
-	BigNum l( "a" );
-	BigNum m = l ^ l;
+	DWORD d = c.numDigits + 1;
+	char* arr = new char[d];
+	c.toArray( arr, d );
+	int fuck = 0;
 
-	BigNum n( "534cebf2379da8eb9456a88441" );
-	BigNum o( "ca1" );
-	BigNum p = n / o;
-	BigNum q = n % o;
 
 // 	BYTE chars[] = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
 // 	char* encoded;

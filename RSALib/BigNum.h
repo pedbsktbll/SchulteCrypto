@@ -31,10 +31,11 @@ public:
 	BigNum operator^(BigNum& other);
 
 	void clear();
+	bool toArray(char* array, DWORD& len);
 	ULONGLONG toULL();
 	void increaseCapacity( DWORD totalBytes );
 
-protected:
+//protected:
 	DWORD numDigits; // Total number of digits starting with 1. May include zeros at the beginning
 	DWORD allocatedBytes; // Total number of actual bytes allocated for the number in "num"
 //	bool positive;

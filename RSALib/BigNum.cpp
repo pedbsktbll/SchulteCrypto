@@ -67,7 +67,7 @@ void BigNum::initialize( DWORD numDigits, BYTE* num /*= NULL*/, bool reverseOrde
 		{
 			for( DWORD i = 0; i < allocatedBytes; i++ )
 			{
-				BYTE b = num[allocatedBytes - 1];
+				BYTE b = num[allocatedBytes - 1 - i];
 				this->num[i] = ((b & 0x0F) << 4) | ((b & 0xF0) >> 4);
 			}
 		}
@@ -380,8 +380,8 @@ BigNum BigNum::operator^(BigNum& other)
 	BigNum zero( "0" );
 	BigNum one( "1" );
 	BigNum two( "2" );
-	if( other.numDigits == 0 )
-		return 1;
+	if( other.numDigits == 0 || other == zero )
+		return one;
 	if( other == one )
 		return *this;
 
@@ -444,7 +444,7 @@ BigNum BigNum::classicalMultiply( const BigNum& other )
 		result = carry;
 		for( int l = 0, bitNum = k - l; l < (int) bot->numDigits && l <= k; l++, bitNum = k - l )
 		{
-			if( bitNum > (int) numDigitsPerSingle )
+			if( bitNum >= (int) numDigitsPerSingle )
 				continue;
 			result += ((bitNum % 2 == 0) ? (resultArr[l * numBytesPerSingle + bitNum / 2] & 0xF0) >> 4 :
 				(resultArr[l * numBytesPerSingle + bitNum / 2] & 0x0F));
@@ -524,7 +524,7 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
 				{
 					quotient.num[k / 2] |= ((k % 2 == 0) ? j << 4 : j );
 					dividendWorkingSet -= multiple;
-					dividendWorkingSet.increaseCapacity( this->allocatedBytes );
+					dividendWorkingSet.increaseCapacity( other.allocatedBytes + 1 );
 					break;
 				}
 			}
@@ -591,4 +591,28 @@ void BigNum::increaseCapacity( DWORD totalBytes )
 {
 	realloc( this->num, totalBytes );
 	this->allocatedBytes = totalBytes;
+}
+
+bool BigNum::toArray( char* array, DWORD& len )
+{
+	if( array == NULL || len < (this->numDigits + 1) / 2 )
+		return false;
+
+	DWORD indx = 0;
+	BYTE b = 0;
+	len = (this->numDigits + 1) / 2;
+	if( this->numDigits % 2 != 0 )
+	{
+		b = (num[len - 1] & 0xF0) >> 4;
+		array[indx++] = (b < 10 ? b + '0' : b - 10 + 'A');
+	}
+	
+	for( DWORD i = indx; i < len; i++ )
+	{
+		b = num[len - 1 - i];
+		array[indx++] = ((b & 0x0F) < 10 ? (b & 0x0F) + '0' : (b & 0x0F) - 10 + 'A');
+		array[indx++] = (((b & 0xF0) >> 4) < 10 ? ((b & 0xF0) >> 4) + '0' : ((b & 0xF0) >> 4) - 10 + 'A');
+	}
+	array[indx++] = '\0';
+	len = indx;
 }

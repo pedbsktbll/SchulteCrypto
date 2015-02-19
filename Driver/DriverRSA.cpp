@@ -14,6 +14,13 @@
 
 int DriverRSA()
 {
+	BigNum test1( "AB" );
+	BigNum test2( "CDEF" );
+	char test1a[10], test2a[10];
+	DWORD test1aSize = 10, test2aSize = 10;
+	test1.toArray( test1a, test1aSize);
+	test2.toArray( test2a, test2aSize );
+
 	RSAPublicKey r;
 	r.modulus.initialize( "CA1" ); // 3233
 	r.publicExponent.initialize( "11" ); // 17
