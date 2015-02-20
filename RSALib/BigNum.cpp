@@ -1,3 +1,19 @@
+#ifdef _DEBUG
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#define DBG_NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
+#define new DBG_NEW
+#else
+//#define _CrtMemState
+#pragma warning(disable : 4005)
+#define _CrtMemCheckpoint(...)
+#define _CrtMemDifference(...) false
+#define _CrtMemDumpStatistics(...)
+#define _CrtDumpMemoryLeaks()
+#define _CrtSetDbgFlag(...)
+#endif
+
 #include "BigNum.h"
 #include <Math.h>
 
@@ -342,6 +358,7 @@ BigNum BigNum::operator-(BigNum& other)
 		result = (firstNibble ? result << 4 : result );
 		retVal.num[byteOffset] |= result;
 	}
+	retVal.validateNumDigits();
 	return retVal;
 }
 
@@ -388,9 +405,9 @@ BigNum BigNum::operator^(BigNum& other)
 
 	BigNum halved = *this ^ (other / two);
 
-	DWORD d = halved.numDigits + 1;
-	char* arr = new char[d];
-	halved.toArray( arr, d );
+//	DWORD d = halved.numDigits + 1;
+// 	char* arr = new char[d];
+// 	halved.toArray( arr, d );
 
 	return other % two == zero ? halved * halved : halved * halved * *this;
 }
@@ -419,43 +436,28 @@ BigNum BigNum::classicalMultiply( const BigNum& other )
 		top = &other;
 	}
 
-	DWORD numDigitsPerSingle = top->numDigits + 1;//log10( (double) top->numDigits );
-	DWORD numBytesPerSingle = (numDigitsPerSingle + 1) / 2;
-	BigNum* resultArr = new BigNum[bot->numDigits];
-	
 	// Multiplies everything out
-	for( int i = 0, bByteOffset = 0, carry = 0, arrNumDigits = 0, bFirstNibble = true; i < (int) bot->numDigits;
+	BigNum retVal( bot->numDigits + top->numDigits );
+	for( int i = 0, bByteOffset = 0, carry = 0, retValIndx = 0, bFirstNibble = true; i < (int) bot->numDigits;
 		i++, bFirstNibble = !bFirstNibble, bFirstNibble ? bByteOffset++ : 0 )
 	{
-		// Initialize BigNum for this specific bottom digit
-		resultArr[i].initialize( top->numDigits + bot->numDigits );
-		arrNumDigits = 0;
-		for( int j = 0; j < i; j++ )
-			arrNumDigits++;
-
 		int b = (bFirstNibble ? (bot->num[bByteOffset] & 0xF0) >> 4 : bot->num[bByteOffset] & 0x0F);
 		carry = 0;
+		retValIndx = i;
 		for( int j = 0, tByteOffset = 0, result = 0, tFirstNibble = true; j < (int) top->numDigits;
-			j++, tFirstNibble = !tFirstNibble, tFirstNibble ? tByteOffset++ : 0 )
+			j++, retValIndx++, tFirstNibble = !tFirstNibble, tFirstNibble ? tByteOffset++ : 0 )
 		{
 			int t = (tFirstNibble ? (top->num[tByteOffset] & 0xF0) >> 4 : top->num[tByteOffset] & 0x0F);
-			result = t * b + carry;
+			result = t * b + carry +
+				((retValIndx  % 2 == 0) ? (retVal.num[retValIndx / 2] & 0xF0) >> 4 : (retVal.num[retValIndx / 2] & 0x0F));
 			carry = result / base;
-			result = ((arrNumDigits % 2 == 0) ? (result % base) << 4 : (result % base));
-			resultArr[i].num[arrNumDigits++ / 2] |= result;
+			result = ((retValIndx % 2 == 0) ? ((result % base) << 4) | (retVal.num[retValIndx / 2] & 0x0F) : (result % base) | (retVal.num[retValIndx / 2] & 0xF0));
+			retVal.num[retValIndx / 2] = result;
 		}
 		// Hmm, I could maybe group this into the for-loop...
-		carry = ((arrNumDigits % 2 == 0) ? (carry % base) << 4 : (carry % base));
-		resultArr[i].num[arrNumDigits++ / 2] |= carry;
-		resultArr[i].numDigits = arrNumDigits;
+		retVal.num[retValIndx / 2] |= ((retValIndx % 2 == 0) ? (carry % base) << 4 : (carry % base));
 	}
-
-	// Now time to add them all! This is an optimized add which is why we dont use BigNum+
-	BigNum retVal( bot->numDigits + top->numDigits );
-	for( int i = 0; i < bot->numDigits; i++ )
-		retVal += resultArr[i];
-
-	delete [] resultArr;
+	retVal.validateNumDigits();
 	return retVal;
 }
 
@@ -480,7 +482,7 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
  	// For EACH digit in the numerator/dividend...
 	BigNum dividendWorkingSet( this->numDigits );
 	BigNum multiple;
-	for( int i = 0, k = this->numDigits - 1; i < this->numDigits; i++, k-- )
+	for( int i = 0, k = this->numDigits - 1; i < (int) this->numDigits; i++, k-- )
 	{
 		// Let's bring the next digit to the dividendWorkingSet:
 		dividendWorkingSet.validateNumDigits();
@@ -494,7 +496,7 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
 			// This is no joke, we need to move everything down one nibble so I can set the most significant nibble >.>
 			BYTE nextDigit = nextNumDigitLeast ? nextNumDigit->nibLeast : nextNumDigit->nibMost;
 //			for( int j = 0; j <= (dividendWorkingSet.numDigits + 1) / 2; j++ )
-			for( int j = 0; j <= (dividendWorkingSet.numDigits) / 2; j++ )
+			for( int j = 0; j <= (int) ((dividendWorkingSet.numDigits) / 2); j++ )
 			{
 				nibble* next = (nibble*)&dividendWorkingSet.num[j];
 				BYTE prev = next->nibMost;
@@ -531,33 +533,8 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
 		}
 	}
 	remainder = dividendWorkingSet;
-
-// 	// For EACH digit in the numerator/dividend...
-// 	// BUT, let's just skip ahead and grab the same number of digits denominator/divisor
-// 	remainder = *this;
-// 	BigNum dividendWorkingSet( this->numDigits );
-// 	BigNum multiple;
-// 	for( int k = this->numDigits; remainder > other; dividendWorkingSet.numDigits = 0 )
-// 	{
-// 		// Let's get the working set larger than the remainder
-// 		for( int i = other.numDigits; i < (int) remainder.numDigits && other > dividendWorkingSet; i++ )
-// 		{
-// 			dividendWorkingSet.numDigits = i;
-// 			memcpy( dividendWorkingSet.num, remainder.num, (i / 2) + 1 );
-// 		}
-// 
-// 		multiple = other;
-// 		for( int j = 1; j < base; j++, multiple+=multiple )
-// 		{
-// 			if( multiple + other > dividendWorkingSet )
-// 			{
-// 				quotient.num[k / 2] |= ((k % 2 == 0) ? j << 4 : j );
-// 				remainder -= multiple;
-// 				k++;
-// 				break;
-// 			}
-// 		}
-// 	}
+	remainder.validateNumDigits();
+	quotient.validateNumDigits();
 }
 
 void BigNum::validateNumDigits()
@@ -574,7 +551,7 @@ void BigNum::validateNumDigits()
 	// Should we also clear the rest that isn't in the numDigits?
 	if( numDigits % 2 != 0 )
 		num[numDigits / 2] &= 0xF0;
-	unsigned short extraClears = allocatedBytes - ((numDigits + 1) / 2);
+	DWORD extraClears = allocatedBytes - ((numDigits + 1) / 2);
 	if( extraClears > 0 )
 		SecureZeroMemory( num + ((numDigits + 1) / 2), extraClears );
 }
@@ -615,4 +592,5 @@ bool BigNum::toArray( char* array, DWORD& len )
 	}
 	array[indx++] = '\0';
 	len = indx;
+	return true;
 }

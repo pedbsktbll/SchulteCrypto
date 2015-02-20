@@ -1,5 +1,20 @@
 // Driver.cpp : Defines the entry point for the console application.
 //
+#ifdef _DEBUG
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#define DBG_NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
+#define new DBG_NEW
+#else
+//#define _CrtMemState
+#pragma warning(disable : 4005)
+#define _CrtMemCheckpoint(...)
+#define _CrtMemDifference(...) false
+#define _CrtMemDumpStatistics(...)
+#define _CrtDumpMemoryLeaks()
+#define _CrtSetDbgFlag(...)
+#endif
 
 #include "../RSALib/RSAKey.h"
 #include "../RSALib/RSAPrivateKey.h"
@@ -18,8 +33,9 @@ bool testAES( BYTE* input, DWORD inputSize, BYTE* key, DWORD keySize, BYTE* expe
 
 int wmain( int argc, wchar_t* argv[] )
 {
-	Sleep( 1000 * 10 );
-// 	return DriverRSA();
+//	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
+//	Sleep( 1000 * 3 );
+ 	return DriverRSA();
 // 	BigNum a( "a8e9" );
 // 	BigNum b( "26d" );
 // 	BigNum c = a + b;
@@ -48,15 +64,20 @@ int wmain( int argc, wchar_t* argv[] )
 // 	BigNum a2( "100" );
 // 	BigNum a3 = a1 * a2;
 
+// 	BigNum z( "999999999999999999999999999999" );
+// 	BigNum y( "999999999999999999999999999999" );
+// 	BigNum x = y * z;
+// 	return 0;
+
 
 	BigNum a( "AE6" );
 	BigNum b( "AC1" );
 	BigNum c = a ^ b;
 
-	DWORD d = c.numDigits + 1;
-	char* arr = new char[d];
-	c.toArray( arr, d );
-	int fuck = 0;
+// 	DWORD d = c.numDigits + 1;
+// 	char* arr = new char[d];
+// 	c.toArray( arr, d );
+// 	int fuck = 0;
 
 
 // 	BYTE chars[] = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
