@@ -54,7 +54,7 @@ public:
 	};
 #pragma pack(pop)
 
-	const unsigned short base = 16;
+	static const unsigned short base = 16;
 
 	void validateNumDigits();
 	BigNum classicalMultiply( const BigNum& other );

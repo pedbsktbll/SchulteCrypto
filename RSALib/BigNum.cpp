@@ -55,6 +55,7 @@ BigNum::~BigNum()
 {
 	if( num != NULL )
 		free( num );
+	this->num = NULL;
 	this->numDigits = 0;
 	this->allocatedBytes = 0;
 }
@@ -65,14 +66,13 @@ void BigNum::initialize( DWORD numDigits, BYTE* num /*= NULL*/, bool reverseOrde
 	this->allocatedBytes = 0;
 	if( this->num != NULL )
 		free( this->num );
+	this->num = NULL;
 
 	if( numDigits > 0 )
 	{
 		this->allocatedBytes = (numDigits + 1) / 2;
 		this->num = (BYTE*) calloc( allocatedBytes, 1 );
 	}
-	else
-		this->num = NULL;
 
 	if( num != NULL && numDigits > 0 )
 	{
@@ -566,7 +566,7 @@ void BigNum::clear()
 
 void BigNum::increaseCapacity( DWORD totalBytes )
 {
-	realloc( this->num, totalBytes );
+	this->num = (BYTE*) realloc( this->num, totalBytes );
 	this->allocatedBytes = totalBytes;
 }
 

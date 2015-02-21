@@ -63,8 +63,8 @@ protected:
 	static const char base64chars[];
 	static const char base64charsDecode[];
 
-	const BYTE SEQUENCE = 0x30;
-	const BYTE INTEGER =  0x02;
+	static const BYTE SEQUENCE = 0x30;
+	static const BYTE INTEGER =  0x02;
 
 };
 

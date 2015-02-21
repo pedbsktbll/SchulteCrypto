@@ -33,8 +33,8 @@ bool testAES( BYTE* input, DWORD inputSize, BYTE* key, DWORD keySize, BYTE* expe
 
 int wmain( int argc, wchar_t* argv[] )
 {
-//	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
-//	Sleep( 1000 * 3 );
+ //	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
+//	Sleep( 1000 * 10 );
  	return DriverRSA();
 // 	BigNum a( "a8e9" );
 // 	BigNum b( "26d" );
@@ -46,7 +46,9 @@ int wmain( int argc, wchar_t* argv[] )
 // 	BigNum g( "1" );
 // 	BigNum h = f - g;
 // 
-// 	BigNum i = a / b;
+// 	BigNum a("AC1");
+//  	BigNum b( "2" );
+//  	BigNum i = a / b;
 // 	BigNum j = a % b;
 // 
 // 	BigNum temp( "10" );
@@ -70,9 +72,9 @@ int wmain( int argc, wchar_t* argv[] )
 // 	return 0;
 
 
-	BigNum a( "AE6" );
-	BigNum b( "AC1" );
-	BigNum c = a ^ b;
+// 	BigNum a( "AE6" );
+// 	BigNum b( "AC1" );
+// 	BigNum c = a ^ b;
 
 // 	DWORD d = c.numDigits + 1;
 // 	char* arr = new char[d];
