@@ -53,6 +53,15 @@ protected:
 		char c1, c2, c3, c4;
 		char arr[4];
 	};
+
+	struct pkcs15_padding_encryptionBlock // Minimum size is 1 (pad) + 1 (blockType) + 8 (padString) + 1 (pad) = 11 bytes
+	{
+		BYTE pad = 0;
+		BYTE blockType; // set to 02 for public-key operations and set to 00 or 01 for private key operations
+		BYTE paddingString[0]; // MUST be at least 8 bytes long
+//		BYTE pad2 = 0;
+//		BYTE data[0];
+	};
 #pragma pack(pop)
 
 	bool eliminateHeader( const char*& buff, DWORD& buffSize );

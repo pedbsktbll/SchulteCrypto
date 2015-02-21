@@ -152,9 +152,9 @@ BigNum RSAPrivateKey::decipher( BigNum& cipherText )
 //	return (cipherText ^ privateExponent) % modulus;
 	BigNum a = cipherText ^ privateExponent;
 
-	DWORD test = a.numDigits + 1;
-	char* arr = new char[test];
-	a.toArray( arr, test );
+// 	DWORD test = a.numDigits + 1;
+// 	char* arr = new char[test];
+// 	a.toArray( arr, test );
 
 	BigNum b = a % modulus;
 	return b;

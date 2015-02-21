@@ -11,7 +11,8 @@ public:
 	virtual bool setKey( const char* buff, DWORD buffSize );
 
 	// RSAEP
-	BigNum cipher(BigNum& plainText);
+	BigNum cipher( BigNum& plainText );
+	bool cipher( BYTE* buffer, DWORD& bufferSize, DWORD& commitSize );
 
 	// RSAVP1
 	bool verify();

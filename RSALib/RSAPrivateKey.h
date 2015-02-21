@@ -11,7 +11,8 @@ public:
 	virtual bool setKey( const char* buff, DWORD buffSize );
 
 	// RSADP
-	BigNum decipher(BigNum& cipherText);
+	BigNum decipher( BigNum& cipherText );
+	BigNum decipher(BYTE* cipherText, DWORD size);
 
 	// RSASP1
 	bool sign();

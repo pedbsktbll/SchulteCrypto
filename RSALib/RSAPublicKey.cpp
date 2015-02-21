@@ -1,5 +1,5 @@
 #include "RSAPublicKey.h"
-
+#include <time.h>
 
 RSAPublicKey::RSAPublicKey()
 {
@@ -65,8 +65,32 @@ bool RSAPublicKey::setKey( const char* buff, DWORD buffSize )
 
 BigNum RSAPublicKey::cipher( BigNum& plainText )
 {
-//	return (plainText ^ this->publicExponent) % this->modulus;
+	// 	//	return (plainText ^ this->publicExponent) % this->modulus;
 	BigNum a = plainText ^ publicExponent;
 	BigNum b = a % modulus;
 	return b;
+}
+
+bool RSAPublicKey::cipher( BYTE* buffer, DWORD& bufferSize, DWORD& commitSize )
+{
+	DWORD k = modulus.numDigits;
+	DWORD padSize = k - 3 - bufferSize;
+	if( bufferSize > k - 11 || commitSize < modulus.numDigits )
+		return false;
+	memmove( buffer + 3 + padSize, buffer, bufferSize );
+
+	srand( (unsigned int)time( NULL ) );
+	pkcs15_padding_encryptionBlock* eb = (pkcs15_padding_encryptionBlock*) buffer;
+	eb->blockType = 2;
+	for( DWORD i = 0; i < padSize; i++ )
+		eb->paddingString[i] = (rand() % 0xFE) + 1; // This must be non-zero
+	eb->paddingString[padSize] = 0;
+
+	// Now convert octet-string to integer (BigNum). First octet of EB has the most significance:
+	BigNum plainText;
+	plainText.initialize( k, buffer );
+	plainText = (plainText ^ publicExponent) % modulus;
+
+	// PlainText is now RSA-encrypted. Now let's convert back to an octet-string:
+	return true;
 }
