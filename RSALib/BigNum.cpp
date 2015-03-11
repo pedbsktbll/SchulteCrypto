@@ -51,6 +51,19 @@ BigNum::BigNum( char* num )
 	initialize( num );
 }
 
+//template<typename t> BigNum::BigNum( T t );
+BigNum::BigNum(ULONGLONG u)
+{
+	this->allocatedBytes = sizeof( u );
+	this->numDigits = this->allocatedBytes * 2;
+	this->num = (BYTE*) malloc( this->allocatedBytes );
+
+	BYTE* b = (BYTE*) &u;
+	for( DWORD i = 0; i < allocatedBytes; i++ )
+		this->num[i] = ((b[i] & 0xF0) << 4) | ((b[i] & 0x0F) << 4);
+	this->validateNumDigits();
+}
+
 BigNum::~BigNum()
 {
 	if( num != NULL )
@@ -185,10 +198,10 @@ bool BigNum::operator==(BigNum& other)
 	return true;
 }
 
-// bool BigNum::operator==(ULONGLONG& other)
-// {
-// 
-// }
+bool BigNum::operator==(ULONGLONG& other)
+{
+	return this->toULL() == other ? true : false;
+}
 
 bool BigNum::operator>=(BigNum& other)
 {
@@ -369,9 +382,10 @@ BigNum& BigNum::operator-=(BigNum& other)
 	return *this;
 }
 
-BigNum BigNum::operator*(const BigNum& other)
+BigNum BigNum::operator*(BigNum& other)
 {
-	return classicalMultiply( other );
+//	return classicalMultiply( other );
+	return karatsubaMultiply( other );
 }
 
 BigNum BigNum::operator/(BigNum& other)
@@ -410,6 +424,48 @@ BigNum BigNum::operator^(BigNum& other)
 // 	halved.toArray( arr, d );
 
 	return other % two == zero ? halved * halved : halved * halved * *this;
+}
+
+BigNum BigNum::operator<<(DWORD numZeros)
+{
+	BigNum retVal( *this );
+	DWORD newSize = ((retVal.numDigits + 1) / 2) + ((numZeros + 1) / 2);
+	if( retVal.allocatedBytes < newSize )
+		retVal.increaseCapacity( newSize );
+
+	memmove( retVal.num + (numZeros + 1) / 2, retVal.num, (retVal.numDigits + 1) / 2 );
+	SecureZeroMemory( retVal.num, (numZeros + 1) / 2 );
+
+	// If we added an odd number of zeros, now we have to move everything over by a fucking nibble!
+	if( numZeros % 2 != 0 )
+	{
+		BYTE nextByte = 0, newByte = 0;
+		for( DWORD i = 0; i <= retVal.numDigits / 2; i++ )
+			retVal.num[numZeros / 2 + i] = ((retVal.num[numZeros / 2 + i] & 0x0F) << 4) | ((retVal.num[numZeros / 2 + i + 1] & 0xF0) >> 4);
+		if( retVal.numDigits % 2 != 0 )
+			retVal.num[newSize - 1] = 0;
+		else
+			retVal.num[newSize - 1] &= 0xF0;
+	}
+	retVal.numDigits += numZeros;
+	return retVal;
+}
+
+BigNum BigNum::operator>>(DWORD other)
+{
+	BigNum retVal( *this );
+	memmove( retVal.num, retVal.num + other / 2, (retVal.numDigits - other + 1) / 2 );
+	SecureZeroMemory( retVal.num + (retVal.numDigits - other + 1) / 2, other / 2 );
+
+	// If we added an odd number of zeros, now we have to move everything over by a fucking nibble!
+	if( other % 2 != 0 )
+	{
+		BYTE nextByte = 0, newByte = 0;
+		for( DWORD i = 0; i < retVal.numDigits / 2; i++ )
+			retVal.num[i] = ((retVal.num[i] & 0x0F) << 4) | ((i + 1 >= retVal.allocatedBytes) ? 0 : ((retVal.num[i + 1] & 0xF0) >> 4));
+	}
+	retVal.numDigits -= other;
+	return retVal;
 }
 
 /****************** Elementary method for multiplication: O(n^2) ******************
@@ -460,6 +516,45 @@ BigNum BigNum::classicalMultiply( const BigNum& other )
 	retVal.validateNumDigits();
 	return retVal;
 }
+
+BigNum BigNum::karatsubaMultiply( BigNum& other )
+{
+	this->validateNumDigits();
+	other.validateNumDigits();
+	if( this->numDigits == 0 || other.numDigits == 0 )
+		return (ULONGLONG) 0;
+// 	if( numDigits + other.numDigits < 16 )
+// 		return this->toULL() * other.toULL();
+
+	if( this->numDigits <= 2 || other.numDigits <= 2 )
+		return this->classicalMultiply( other );
+
+	DWORD totalDigits = this->numDigits > other.numDigits ? this->numDigits : other.numDigits;
+	this->padDigits( totalDigits );
+	other.padDigits( totalDigits );
+//	DWORD m = (totalDigits + 1) / 2;
+	DWORD m = totalDigits / 2;
+
+	// Get the lower half and upper half of each of the numbers to multiply
+	BigNum thisLow( totalDigits ), otherLow( totalDigits ), thisHigh( totalDigits ), otherHigh( totalDigits ), thisSum( totalDigits ), otherSum( totalDigits );
+	memcpy( thisLow.num, &this->num[(totalDigits - m) / 2], m / 2 );
+	memcpy( otherLow.num, &other.num[(totalDigits - m) / 2], m / 2 );
+	memcpy( thisHigh.num, this->num, (totalDigits - m) / 2 );
+	memcpy( otherHigh.num, other.num, (totalDigits - m) / 2 );
+	thisSum = thisLow + thisHigh;
+	otherSum = otherLow + otherHigh;
+
+	// [ this * other ] = [ x * y ] = [(x1 * B^m + x0) * (y1 * B^m + y0)] = (x1 * B^m + x0) * (y1 * B^m + y0) = [z2 * B^2m + z1 * B^m + z0]
+	BigNum z2 = thisHigh.karatsubaMultiply( otherHigh );
+	BigNum z0 = thisLow.karatsubaMultiply( otherLow );
+	BigNum z1 = thisSum.karatsubaMultiply( otherSum ) - z2 - z0;
+	
+//	z2.addZeros( 2 * m ); // z2 = z2 * 16 ^ ( 2 * 2 )
+//	z1.addZeros( m ); // z1 = z1 * 16 ^ (2 )
+	BigNum retVal = z2 + z1 + z0;
+	return retVal;
+}
+
 
 void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder )
 {
@@ -566,8 +661,24 @@ void BigNum::clear()
 
 void BigNum::increaseCapacity( DWORD totalBytes )
 {
+	if( this->allocatedBytes >= totalBytes )
+		return;
+
 	this->num = (BYTE*) realloc( this->num, totalBytes );
 	this->allocatedBytes = totalBytes;
+}
+
+void BigNum::padDigits( DWORD totalDigits )
+{
+	if( this->numDigits >= totalDigits )
+		return;
+
+	DWORD newSize = totalDigits / 2;
+	if( this->allocatedBytes < newSize )
+		increaseCapacity( newSize );
+
+	SecureZeroMemory( this->num + (this->numDigits + 1) / 2, totalDigits - ((this->numDigits + 1) / 2) );
+	this->numDigits = totalDigits;
 }
 
 bool BigNum::toArray( char* array, DWORD& len )
@@ -594,3 +705,43 @@ bool BigNum::toArray( char* array, DWORD& len )
 	len = indx;
 	return true;
 }
+
+ULONGLONG BigNum::toULL()
+{
+	if( numDigits > 16 )
+		return -1;
+
+	ULONGLONG retVal;
+	BYTE* b = (BYTE*) &retVal;
+	for( DWORD i = 0; i < allocatedBytes; i++ )
+		b[i] = ((this->num[i] & 0xF0) << 4) | ((this->num[i] & 0x0F) << 4);
+	return retVal;
+}
+
+// void BigNum::addZeros( DWORD numZeros )
+// {
+// 	DWORD newSize = (numDigits + numZeros + 1) / 2;
+// 	if( allocatedBytes < newSize )
+// 		increaseCapacity( newSize );
+// 
+// //	memmove( this->num + (numZeros + 1) / 2, this->num, (numDigits + 1) / 2 );
+// 	memmove( this->num + numZeros / 2, this->num, (numDigits + 1) / 2 );
+// 	SecureZeroMemory( this->num, numZeros / 2 );
+// 
+// 	// If we added an odd number of zeros, now we have to move everything over by a fucking nibble!
+// 	if( numZeros % 2 != 0 )
+// 	{
+// 		BYTE nextByte = 0, newByte = 0;
+// 		for( DWORD i = 0; i <= numDigits / 2; i++ )
+// 		{
+// 			newByte = (nextByte << 4) | ((this->num[numZeros / 2 + i] & 0xF0) >> 4);
+// 			nextByte = this->num[numZeros / 2 + i] & 0x0F;
+// 			this->num[numZeros / 2 + i] = newByte;
+// 		}
+// 	}
+// 	this->numDigits += numZeros;
+// }
+// void BigNum::addZeros( DWORD numZeros )
+//{
+//	
+//}

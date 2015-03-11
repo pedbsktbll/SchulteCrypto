@@ -14,6 +14,8 @@ public:
 	bool base64Decode( const char* buff, DWORD buffSize, BYTE*& decodedBuff, DWORD& decodedBuffSize );
 
 protected:
+#pragma warning( push )
+#pragma warning( disable : 4200 )
 #pragma pack(push, 1)
 	union b64Type
 	{
@@ -63,6 +65,7 @@ protected:
 //		BYTE data[0];
 	};
 #pragma pack(pop)
+#pragma warning( pop )
 
 	bool eliminateHeader( const char*& buff, DWORD& buffSize );
 	bool readDER_TLV( BYTE*& dataPtr, DER_TLV& der );

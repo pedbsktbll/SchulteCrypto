@@ -35,7 +35,7 @@ int wmain( int argc, wchar_t* argv[] )
 {
  //	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 //	Sleep( 1000 * 10 );
- 	return DriverRSA();
+// 	return DriverRSA();
 // 	BigNum a( "a8e9" );
 // 	BigNum b( "26d" );
 // 	BigNum c = a + b;
@@ -70,6 +70,12 @@ int wmain( int argc, wchar_t* argv[] )
 // 	BigNum y( "999999999999999999999999999999" );
 // 	BigNum x = y * z;
 // 	return 0;
+
+	BigNum a( "12345" );
+	BigNum b( "6789" );
+// 	a.addZeros( 2 );
+// 	b.addZeros( 2 );
+	BigNum c = a * b;
 
 
 // 	BigNum a( "AE6" );
