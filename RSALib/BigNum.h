@@ -31,15 +31,16 @@ public:
 	BigNum operator/(BigNum& other);
 	BigNum operator%(BigNum& other);
 	BigNum operator^(BigNum& other);
-	BigNum operator<<(DWORD other);
-	BigNum operator>>(DWORD other);
+	BigNum operator<<(DWORD other); // AKA multiply by 16 ^ x
+	BigNum operator>>(DWORD other); // AKA divide by 16 ^ x
+
+	BigNum classicalPow(BigNum& other);
 
 	void clear();
 	bool toArray(char* array, DWORD& len);
 	ULONGLONG toULL();
 	void increaseCapacity( DWORD totalBytes );
 	void padDigits( DWORD totalDigits );
-//	void addZeros( DWORD numZeros ); // AKA multiply by 16 ^ x
 
 //protected:
 	DWORD numDigits; // Total number of digits starting with 1. May include zeros at the beginning

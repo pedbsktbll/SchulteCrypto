@@ -71,16 +71,33 @@ int wmain( int argc, wchar_t* argv[] )
 // 	BigNum x = y * z;
 // 	return 0;
 
-	BigNum a( "12345" );
-	BigNum b( "6789" );
+//	BigNum a( "12345" );
+//	BigNum b( "6789" );
 // 	a.addZeros( 2 );
 // 	b.addZeros( 2 );
-	BigNum c = a * b;
+//	BigNum c = a * b;
+
+//	ULONGLONG test = 257 ^ 257;
 
 
-// 	BigNum a( "AE6" );
-// 	BigNum b( "AC1" );
-// 	BigNum c = a ^ b;
+
+// 	BigNum a( "101" );//"AE6" );
+// 	BigNum b( "A" );//"AC1" );
+// 	BigNum c = a.classicalPow( b );
+// 	BigNum d = a ^ b;
+// 	if( !(c == d) )
+// 		printf( "Error" );
+// 
+// 	BigNum x( "5" );
+// 	BigNum y = a ^ x;
+// 	BigNum z = y * y;
+// 	BigNum zz = y.classicalMultiply( y );
+
+	BigNum broke( "1050A0A0501" );
+	BigNum classical = broke.classicalMultiply( broke );
+	BigNum mat = broke * broke;
+	if( !(classical == mat) )
+		printf( "Error" );
 
 // 	DWORD d = c.numDigits + 1;
 // 	char* arr = new char[d];

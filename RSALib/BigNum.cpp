@@ -418,12 +418,37 @@ BigNum BigNum::operator^(BigNum& other)
 		return *this;
 
 	BigNum halved = *this ^ (other / two);
+	BigNum testHalved = this->classicalPow( other / two );
+	if( !(halved == testHalved) )
+	{
+		DebugBreak();
+	}
 
 //	DWORD d = halved.numDigits + 1;
 // 	char* arr = new char[d];
 // 	halved.toArray( arr, d );
 
 	return other % two == zero ? halved * halved : halved * halved * *this;
+}
+
+BigNum BigNum::classicalPow( BigNum& other )
+{
+	BigNum zero( "0" );
+	BigNum one( "1" );
+	BigNum two( "2" );
+	if( other.numDigits == 0 || other == zero )
+		return one;
+	if( other == one )
+		return *this;
+
+	BigNum halved = this->classicalPow(other / two);
+
+	//	DWORD d = halved.numDigits + 1;
+	// 	char* arr = new char[d];
+	// 	halved.toArray( arr, d );
+
+	BigNum m = halved.classicalMultiply( halved );
+	return other % two == zero ? m : m.classicalMultiply(*this);
 }
 
 BigNum BigNum::operator<<(DWORD numZeros)
@@ -537,20 +562,30 @@ BigNum BigNum::karatsubaMultiply( BigNum& other )
 
 	// Get the lower half and upper half of each of the numbers to multiply
 	BigNum thisLow( totalDigits ), otherLow( totalDigits ), thisHigh( totalDigits ), otherHigh( totalDigits ), thisSum( totalDigits ), otherSum( totalDigits );
-	memcpy( thisLow.num, &this->num[(totalDigits - m) / 2], m / 2 );
-	memcpy( otherLow.num, &other.num[(totalDigits - m) / 2], m / 2 );
-	memcpy( thisHigh.num, this->num, (totalDigits - m) / 2 );
-	memcpy( otherHigh.num, other.num, (totalDigits - m) / 2 );
+	memcpy( thisLow.num, &this->num[(totalDigits - m) / 2], ((totalDigits + 1) / 2) - ((totalDigits - m) / 2));
+	memcpy( otherLow.num, &other.num[(totalDigits - m) / 2], ((totalDigits + 1) / 2) - ((totalDigits - m) / 2));
+	memcpy( thisHigh.num, this->num, (totalDigits - m + 1) / 2 );
+	memcpy( otherHigh.num, other.num, (totalDigits - m + 1) / 2 );
+	if( totalDigits > 3 && totalDigits % 2 != 0 )
+	{
+		thisHigh.num[(totalDigits - m) / 2] &= 0xF0;
+		thisLow = thisLow >> 1;
+		otherHigh.num[(totalDigits - m) / 2] &= 0xF0;
+		otherLow = otherLow >> 1;
+	}
 	thisSum = thisLow + thisHigh;
 	otherSum = otherLow + otherHigh;
 
 	// [ this * other ] = [ x * y ] = [(x1 * B^m + x0) * (y1 * B^m + y0)] = (x1 * B^m + x0) * (y1 * B^m + y0) = [z2 * B^2m + z1 * B^m + z0]
-	BigNum z2 = thisHigh.karatsubaMultiply( otherHigh );
-	BigNum z0 = thisLow.karatsubaMultiply( otherLow );
+	BigNum z2 = thisLow.karatsubaMultiply( otherLow );
+	BigNum z0 = thisHigh.karatsubaMultiply( otherHigh ); 
 	BigNum z1 = thisSum.karatsubaMultiply( otherSum ) - z2 - z0;
 	
+	m = totalDigits - m;
 //	z2.addZeros( 2 * m ); // z2 = z2 * 16 ^ ( 2 * 2 )
+	z2 = z2 << (2 * m);
 //	z1.addZeros( m ); // z1 = z1 * 16 ^ (2 )
+	z1 = z1 << m;
 	BigNum retVal = z2 + z1 + z0;
 	return retVal;
 }
@@ -673,11 +708,11 @@ void BigNum::padDigits( DWORD totalDigits )
 	if( this->numDigits >= totalDigits )
 		return;
 
-	DWORD newSize = totalDigits / 2;
+	DWORD newSize = (totalDigits + 1) / 2;
 	if( this->allocatedBytes < newSize )
 		increaseCapacity( newSize );
 
-	SecureZeroMemory( this->num + (this->numDigits + 1) / 2, totalDigits - ((this->numDigits + 1) / 2) );
+	SecureZeroMemory( this->num + (this->numDigits + 1) / 2, (totalDigits + 1) / 2 - ((this->numDigits + 1) / 2) );
 	this->numDigits = totalDigits;
 }
 
@@ -717,31 +752,3 @@ ULONGLONG BigNum::toULL()
 		b[i] = ((this->num[i] & 0xF0) << 4) | ((this->num[i] & 0x0F) << 4);
 	return retVal;
 }
-
-// void BigNum::addZeros( DWORD numZeros )
-// {
-// 	DWORD newSize = (numDigits + numZeros + 1) / 2;
-// 	if( allocatedBytes < newSize )
-// 		increaseCapacity( newSize );
-// 
-// //	memmove( this->num + (numZeros + 1) / 2, this->num, (numDigits + 1) / 2 );
-// 	memmove( this->num + numZeros / 2, this->num, (numDigits + 1) / 2 );
-// 	SecureZeroMemory( this->num, numZeros / 2 );
-// 
-// 	// If we added an odd number of zeros, now we have to move everything over by a fucking nibble!
-// 	if( numZeros % 2 != 0 )
-// 	{
-// 		BYTE nextByte = 0, newByte = 0;
-// 		for( DWORD i = 0; i <= numDigits / 2; i++ )
-// 		{
-// 			newByte = (nextByte << 4) | ((this->num[numZeros / 2 + i] & 0xF0) >> 4);
-// 			nextByte = this->num[numZeros / 2 + i] & 0x0F;
-// 			this->num[numZeros / 2 + i] = newByte;
-// 		}
-// 	}
-// 	this->numDigits += numZeros;
-// }
-// void BigNum::addZeros( DWORD numZeros )
-//{
-//	
-//}
