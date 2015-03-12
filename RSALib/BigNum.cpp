@@ -557,31 +557,36 @@ BigNum BigNum::karatsubaMultiply( BigNum& other )
 	DWORD totalDigits = this->numDigits > other.numDigits ? this->numDigits : other.numDigits;
 	this->padDigits( totalDigits );
 	other.padDigits( totalDigits );
-//	DWORD m = (totalDigits + 1) / 2;
-	DWORD m = totalDigits / 2;
+	DWORD m = (totalDigits + 1) / 2;
+//	DWORD m = totalDigits / 2;
 
 	// Get the lower half and upper half of each of the numbers to multiply
 	BigNum thisLow( totalDigits ), otherLow( totalDigits ), thisHigh( totalDigits ), otherHigh( totalDigits ), thisSum( totalDigits ), otherSum( totalDigits );
-	memcpy( thisLow.num, &this->num[(totalDigits - m) / 2], ((totalDigits + 1) / 2) - ((totalDigits - m) / 2));
-	memcpy( otherLow.num, &other.num[(totalDigits - m) / 2], ((totalDigits + 1) / 2) - ((totalDigits - m) / 2));
-	memcpy( thisHigh.num, this->num, (totalDigits - m + 1) / 2 );
-	memcpy( otherHigh.num, other.num, (totalDigits - m + 1) / 2 );
-	if( totalDigits > 3 && totalDigits % 2 != 0 )
+
+	// From offset (totalDigits - m) / 2, we want (m + 1) / 2 BYTES for our low
+	memcpy( thisLow.num, this->num, (m + 1) / 2 );
+	memcpy( otherLow.num, other.num, (m + 1) / 2 );
+
+	// From offset 0, we want total digits - m DIGITS for our high
+	memcpy( thisHigh.num, &this->num[(totalDigits - m + 1) / 2], ((totalDigits + 1) / 2) - m / 2 );
+	memcpy( otherHigh.num, &other.num[(totalDigits - m + 1) / 2], ((totalDigits + 1) / 2) - m / 2 );
+//	if( totalDigits > 3 && totalDigits % 2 != 0 )
+	if( m % 2 != 0 )
 	{
-		thisHigh.num[(totalDigits - m) / 2] &= 0xF0;
-		thisLow = thisLow >> 1;
-		otherHigh.num[(totalDigits - m) / 2] &= 0xF0;
-		otherLow = otherLow >> 1;
+		thisLow.num[m / 2] &= 0xF0;
+		thisHigh = thisHigh >> 1;
+		otherLow.num[m / 2] &= 0xF0;
+		otherHigh = otherHigh >> 1;
 	}
 	thisSum = thisLow + thisHigh;
 	otherSum = otherLow + otherHigh;
 
 	// [ this * other ] = [ x * y ] = [(x1 * B^m + x0) * (y1 * B^m + y0)] = (x1 * B^m + x0) * (y1 * B^m + y0) = [z2 * B^2m + z1 * B^m + z0]
-	BigNum z2 = thisLow.karatsubaMultiply( otherLow );
-	BigNum z0 = thisHigh.karatsubaMultiply( otherHigh ); 
+	BigNum z2 = thisHigh.karatsubaMultiply( otherHigh );
+	BigNum z0 = thisLow.karatsubaMultiply( otherLow ); 
 	BigNum z1 = thisSum.karatsubaMultiply( otherSum ) - z2 - z0;
 	
-	m = totalDigits - m;
+//	m = totalDigits - m;
 //	z2.addZeros( 2 * m ); // z2 = z2 * 16 ^ ( 2 * 2 )
 	z2 = z2 << (2 * m);
 //	z1.addZeros( m ); // z1 = z1 * 16 ^ (2 )

@@ -81,12 +81,12 @@ int wmain( int argc, wchar_t* argv[] )
 
 
 
-// 	BigNum a( "101" );//"AE6" );
-// 	BigNum b( "A" );//"AC1" );
-// 	BigNum c = a.classicalPow( b );
-// 	BigNum d = a ^ b;
-// 	if( !(c == d) )
-// 		printf( "Error" );
+ 	BigNum a( "101" );//"101" );//"AE6" );
+ 	BigNum b( "100" );//"A" );//"AC1" );
+ 	BigNum c = a.classicalPow( b );
+ 	BigNum d = a ^ b;
+ 	if( !(c == d) )
+ 		printf( "Error" );
 // 
 // 	BigNum x( "5" );
 // 	BigNum y = a ^ x;
@@ -97,7 +97,7 @@ int wmain( int argc, wchar_t* argv[] )
 	BigNum classical = broke.classicalMultiply( broke );
 	BigNum mat = broke * broke;
 	if( !(classical == mat) )
-		printf( "Error" );
+		printf("Error");
 
 // 	DWORD d = c.numDigits + 1;
 // 	char* arr = new char[d];
