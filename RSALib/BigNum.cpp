@@ -60,7 +60,7 @@ BigNum::BigNum(ULONGLONG u)
 
 	BYTE* b = (BYTE*) &u;
 	for( DWORD i = 0; i < allocatedBytes; i++ )
-		this->num[i] = ((b[i] & 0xF0) << 4) | ((b[i] & 0x0F) << 4);
+		this->num[i] = ((b[i] & 0xF0) >> 4) | ((b[i] & 0x0F) << 4);
 	this->validateNumDigits();
 }
 
@@ -548,8 +548,18 @@ BigNum BigNum::karatsubaMultiply( BigNum& other )
 	other.validateNumDigits();
 	if( this->numDigits == 0 || other.numDigits == 0 )
 		return (ULONGLONG) 0;
-// 	if( numDigits + other.numDigits < 16 )
-// 		return this->toULL() * other.toULL();
+
+	if( numDigits <= 7 && other.numDigits <= 7 )
+	{
+		return this->toULL() * other.toULL();
+// 		BigNum retVal = this->toULL() * other.toULL();
+// 		BigNum test = this->classicalMultiply( other );
+// 		if( !(retVal == test) )
+// 		{
+// 			DebugBreak();
+// 		}
+// 		return retVal;
+	}
 
 	if( this->numDigits <= 2 || other.numDigits <= 2 )
 		return this->classicalMultiply( other );
@@ -755,9 +765,9 @@ ULONGLONG BigNum::toULL()
 	if( numDigits > 16 )
 		return -1;
 
-	ULONGLONG retVal;
+	ULONGLONG retVal = 0;
 	BYTE* b = (BYTE*) &retVal;
-	for( DWORD i = 0; i < allocatedBytes; i++ )
-		b[i] = ((this->num[i] & 0xF0) << 4) | ((this->num[i] & 0x0F) << 4);
+	for( DWORD i = 0; i < /*allocatedBytes*/(numDigits + 1) / 2; i++ )
+		b[i] = ((this->num[i] & 0xF0) >> 4) | ((this->num[i] & 0x0F) << 4);
 	return retVal;
 }
