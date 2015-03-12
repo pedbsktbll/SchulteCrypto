@@ -555,10 +555,14 @@ BigNum BigNum::karatsubaMultiply( BigNum& other )
 		return this->classicalMultiply( other );
 
 	DWORD totalDigits = this->numDigits > other.numDigits ? this->numDigits : other.numDigits;
+	DWORD m = (totalDigits + 1) / 2;
+
+	// m must be less than both string lenths
+	if( this->numDigits < m || other.numDigits < m )
+		return this->classicalMultiply( other );
+
 	this->padDigits( totalDigits );
 	other.padDigits( totalDigits );
-	DWORD m = (totalDigits + 1) / 2;
-//	DWORD m = totalDigits / 2;
 
 	// Get the lower half and upper half of each of the numbers to multiply
 	BigNum thisLow( totalDigits ), otherLow( totalDigits ), thisHigh( totalDigits ), otherHigh( totalDigits ), thisSum( totalDigits ), otherSum( totalDigits );
@@ -568,8 +572,8 @@ BigNum BigNum::karatsubaMultiply( BigNum& other )
 	memcpy( otherLow.num, other.num, (m + 1) / 2 );
 
 	// From offset 0, we want total digits - m DIGITS for our high
-	memcpy( thisHigh.num, &this->num[(totalDigits - m + 1) / 2], ((totalDigits + 1) / 2) - m / 2 );
-	memcpy( otherHigh.num, &other.num[(totalDigits - m + 1) / 2], ((totalDigits + 1) / 2) - m / 2 );
+	memcpy( thisHigh.num, &this->num[m / 2], ((totalDigits + 1) / 2) - m / 2 );
+	memcpy( otherHigh.num, &other.num[m / 2], ((totalDigits + 1) / 2) - m / 2 );
 //	if( totalDigits > 3 && totalDigits % 2 != 0 )
 	if( m % 2 != 0 )
 	{

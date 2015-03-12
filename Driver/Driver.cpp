@@ -35,7 +35,7 @@ int wmain( int argc, wchar_t* argv[] )
 {
  //	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 //	Sleep( 1000 * 10 );
-// 	return DriverRSA();
+ 	return DriverRSA();
 // 	BigNum a( "a8e9" );
 // 	BigNum b( "26d" );
 // 	BigNum c = a + b;
@@ -71,33 +71,46 @@ int wmain( int argc, wchar_t* argv[] )
 // 	BigNum x = y * z;
 // 	return 0;
 
-//	BigNum a( "12345" );
-//	BigNum b( "6789" );
-// 	a.addZeros( 2 );
-// 	b.addZeros( 2 );
-//	BigNum c = a * b;
+// 	BigNum a( "12345" );
+// 	BigNum b( "6789" );
+// 	BigNum c = a * b;
 
 //	ULONGLONG test = 257 ^ 257;
 
+//   	BigNum a( "AE6" );
+//   	BigNum b( "AC1" );
 
 
- 	BigNum a( "101" );//"101" );//"AE6" );
- 	BigNum b( "100" );//"A" );//"AC1" );
- 	BigNum c = a.classicalPow( b );
- 	BigNum d = a ^ b;
- 	if( !(c == d) )
- 		printf( "Error" );
+// 	BigNum one( "1" );
+//  	BigNum a( "101" );//"101" );//"AE6" );
+//  	BigNum b( "100" );//"A" );//"AC1" );
+//  	BigNum c = a.classicalPow( b );
+//  	BigNum d = a ^ b;
+//  	if( !(c == d) )
+//  		printf( "Error" );
+// 
+// 	BigNum i( "1" );
+// 	for( ; i < a; i = i + one )
+// 	{
+// 		c = a.classicalPow( i );
+// 		d = a ^ i;
+// 		if( !(c == d) )
+// 			printf( "Error" );
+// 	}
 // 
 // 	BigNum x( "5" );
 // 	BigNum y = a ^ x;
 // 	BigNum z = y * y;
 // 	BigNum zz = y.classicalMultiply( y );
 
-	BigNum broke( "1050A0A0501" );
-	BigNum classical = broke.classicalMultiply( broke );
-	BigNum mat = broke * broke;
-	if( !(classical == mat) )
-		printf("Error");
+//	BigNum broke( "1050A0A0501" );
+//	BigNum broke( "1060f140f0601" );
+//	BigNum broke( "1060f1" );
+//	BigNum broke( "106" );
+// 	BigNum classical = broke.classicalMultiply( broke );
+// 	BigNum mat = broke * broke;
+// 	if( !(classical == mat) )
+// 		printf("Error");
 
 // 	DWORD d = c.numDigits + 1;
 // 	char* arr = new char[d];
