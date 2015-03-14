@@ -35,6 +35,7 @@ public:
 	BigNum operator>>(DWORD other); // AKA divide by 16 ^ x
 
 	BigNum classicalPow(BigNum& other);
+	BigNum pow_modulo( BigNum& power, BigNum& modulo );
 
 	void clear();
 	bool toArray(char* array, DWORD& len);

@@ -418,11 +418,11 @@ BigNum BigNum::operator^(BigNum& other)
 		return *this;
 
 	BigNum halved = *this ^ (other / two);
-	BigNum testHalved = this->classicalPow( other / two );
-	if( !(halved == testHalved) )
-	{
-		DebugBreak();
-	}
+// 	BigNum testHalved = this->classicalPow( other / two );
+// 	if( !(halved == testHalved) )
+// 	{
+// 		DebugBreak();
+// 	}
 
 //	DWORD d = halved.numDigits + 1;
 // 	char* arr = new char[d];
@@ -449,6 +449,31 @@ BigNum BigNum::classicalPow( BigNum& other )
 
 	BigNum m = halved.classicalMultiply( halved );
 	return other % two == zero ? m : m.classicalMultiply(*this);
+}
+
+BigNum BigNum::pow_modulo( BigNum& power, BigNum& modulo )
+{
+	BigNum zero( "0" );
+	BigNum one( "1" );
+	BigNum two( "2" );
+	if( power.numDigits == 0 || power == zero )
+		return one;
+	if( power == one )
+		return *this;
+
+	BigNum halved = this->pow_modulo( power / two, modulo );
+	// 	BigNum testHalved = this->classicalPow( other / two );
+	// 	if( !(halved == testHalved) )
+	// 	{
+	// 		DebugBreak();
+	// 	}
+
+	//	DWORD d = halved.numDigits + 1;
+	// 	char* arr = new char[d];
+	// 	halved.toArray( arr, d );
+
+//	BigNum retVal = power.num[0] % 2 == 0 ? halved * halved : halved * halved * *this;
+	return ((power.num[0] & 0xF0) >> 4) % 2 == 0 ? (halved * halved) % modulo : (halved * halved * *this) % modulo;
 }
 
 BigNum BigNum::operator<<(DWORD numZeros)
@@ -617,7 +642,10 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
 	quotient.initialize( this->numDigits );
 
 	if( other > *this )
+	{
+		remainder = *this;
 		return;
+	}
 	else if( other == *this )
 	{
 		quotient.num[0] = 1 << 4;

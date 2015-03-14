@@ -117,6 +117,10 @@ int wmain( int argc, wchar_t* argv[] )
 // 	c.toArray( arr, d );
 // 	int fuck = 0;
 
+// 	BigNum a( "500" );
+// 	BigNum pow( "2" );
+// 	BigNum mod( "23" );
+// 	BigNum retVal = a.pow_modulo( pow, mod );
 
 // 	BYTE chars[] = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
 // 	char* encoded;

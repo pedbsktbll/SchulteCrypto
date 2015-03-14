@@ -66,9 +66,10 @@ bool RSAPublicKey::setKey( const char* buff, DWORD buffSize )
 BigNum RSAPublicKey::cipher( BigNum& plainText )
 {
 	// 	//	return (plainText ^ this->publicExponent) % this->modulus;
-	BigNum a = plainText ^ publicExponent;
-	BigNum b = a % modulus;
-	return b;
+//	BigNum a = plainText ^ publicExponent;
+//	BigNum b = a % modulus;
+//	return b;
+	return plainText.pow_modulo( publicExponent, modulus );
 }
 
 bool RSAPublicKey::cipher( BYTE* buffer, DWORD& bufferSize, DWORD& commitSize )
