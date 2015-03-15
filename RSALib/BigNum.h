@@ -39,6 +39,8 @@ public:
 	void classicalDivision( BigNum& other, BigNum& quotient, BigNum& remainder );
 	BigNum classicalExponent( BigNum& exponent );
 
+//	void appliedCryptoDivision(BigNum& other, BigNum& quotient, BigNum& remainder );
+
 	BigNum pow_modulo( BigNum& power, BigNum& modulo );
 	BigNum karatsubaMultiply( BigNum& other );
 	BigNum modInverse( BigNum& other );

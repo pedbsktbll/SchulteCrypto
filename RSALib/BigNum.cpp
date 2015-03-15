@@ -17,6 +17,9 @@
 #include "BigNum.h"
 #include <Math.h>
 
+#define SET_NIBBLE(arr, digitNum, val) arr[(digitNum) / 2] = ((digitNum) % 2 == 0 ? arr[(digitNum) / 2] & 0x0F | ( (val) << 4 ) : arr[(digitNum) / 2] & 0xF0 | (val))
+#define GET_NIBBLE(arr, digitNum) ((digitNum) % 2 == 0 ? (arr[(digitNum) / 2] & 0xF0) >> 4 : (arr[(digitNum) / 2] & 0x0F))
+
 BigNum::BigNum()
 {
 	numDigits = 0;
@@ -563,7 +566,6 @@ void BigNum::classicalDivision( BigNum& other, BigNum& quotient, BigNum& remaind
 		{
 			// This is no joke, we need to move everything down one nibble so I can set the most significant nibble >.>
 			BYTE nextDigit = nextNumDigitLeast ? nextNumDigit->nibLeast : nextNumDigit->nibMost;
-//			for( int j = 0; j <= (dividendWorkingSet.numDigits + 1) / 2; j++ )
 			for( int j = 0; j <= (int) ((dividendWorkingSet.numDigits) / 2); j++ )
 			{
 				nibble* next = (nibble*)&dividendWorkingSet.num[j];
@@ -578,32 +580,75 @@ void BigNum::classicalDivision( BigNum& other, BigNum& quotient, BigNum& remaind
 		if( nextNumDigitLeast == true )
 			nextNumDigit--;
 
-		if( other > dividendWorkingSet )
-			continue;
-		else if( dividendWorkingSet == other )
-		{
-			quotient.num[k / 2] |= ((k % 2 == 0) ? 1 << 4 : 1);
-			dividendWorkingSet.numDigits = 0;
-		}
-		else
-		{
-			multiple = other;
-			for( int j = 1; j < base; j++, multiple += other )
-			{
-				if( multiple + other > dividendWorkingSet )
-				{
-					quotient.num[k / 2] |= ((k % 2 == 0) ? j << 4 : j );
-					dividendWorkingSet -= multiple;
-					dividendWorkingSet.increaseCapacity( other.allocatedBytes + 1 );
-					break;
-				}
-			}
-		}
+		int j = 0;
+		for( ; j < base && dividendWorkingSet >= other; j++ )
+				dividendWorkingSet.classicalSubtract( other, NULL );
+
+		if( j > 0 )
+			quotient.num[k / 2] |= ((k % 2 == 0) ? j << 4 : j);
 	}
 	remainder = dividendWorkingSet;
 	remainder.validateNumDigits();
 	quotient.validateNumDigits();
 }
+
+// void BigNum::appliedCryptoDivision( BigNum& other, BigNum& quotient, BigNum& remainder )
+// {
+// 	this->validateNumDigits();
+// 	other.validateNumDigits();
+// 	BigNum x = *this;
+// 	BigNum y = other;
+// 
+// 	DWORD n = this->numDigits - 1;
+// 	DWORD t = other.numDigits - 1;
+// 	DWORD q = n - t;
+// 	quotient.initialize( q );
+// 
+// 	if( other > *this )
+// 	{
+// 		remainder = *this;
+// 		return;
+// 	}
+// 	else if( other == *this )
+// 	{
+// 		quotient.num[0] = 1 << 4;
+// 		quotient.numDigits = 1;
+// 		return;
+// 	}
+// 
+// 	BigNum bnt(base ^ q);
+// 	BigNum multiple = y.karatsubaMultiply( bnt );
+// 	nibble* mostSignificant = (nibble*) &quotient.num[q / 2];
+// 	while( x >= multiple )
+// 	{
+// 		if( q % 2 == 0 )
+// 			mostSignificant->nibMost++;
+// 		else
+// 			mostSignificant->nibLeast++;
+// 		x -= multiple;
+// 	}
+// 
+// //	nibble* yt = (nibble*)&y.num[t / 2];
+// 	BYTE yt = (t % 2 == 0 ? (y.num[t / 2] & 0xF0) >> 4 : (y.num[t / 2] & 0x0F));
+// 	for( int i = n; i >= t + 1; i-- )
+// 	{
+// 		BYTE xi = GET_NIBBLE( x.num, i );
+// 		BYTE xi_1 = GET_NIBBLE( x.num, i - 1 );
+// 		BYTE xi_2 = GET_NIBBLE( x.num, i - 2 );
+// 		BYTE yt_1 = GET_NIBBLE( y.num, t - 1 );
+// 		BYTE q_i_t_1 = GET_NIBBLE( quotient.num, i - t - 1 );
+// 		if( xi == yt )
+// 			SET_NIBBLE( quotient.num, i - t - 1, base - 1 );
+// 		else
+// 			SET_NIBBLE( quotient.num, i - t - 1, (xi * base + xi_1) / yt );
+// 
+// 		while( q_i_t_1 * (yt * base + yt_1) > xi * base * base + xi_1 * base + xi_2 )
+// 		{
+// 			SET_NIBBLE( q.num, i - t - 1, --q_i_t_1 );
+// 		}
+// 		BigNum fuckm( (ULONGLONG) q_i_t_1 * (ULONGLONG) y * (ULONGLONG) base ^ (i - t - 1) );
+// 	}
+// }
 
 /****************** Exponentiation by squaring: O((n*log(x))^k) ******************
 x^15 = (x^7)*(x^7)*x
