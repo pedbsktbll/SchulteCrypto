@@ -34,7 +34,7 @@ public:
 	BigNum operator>>(DWORD other); // AKA divide by 16 ^ x
 
 	void classicalAddition( BigNum& other, BigNum* retVal );
-	void classicalSubtract( BigNum& other, BigNum& retVal );
+	void classicalSubtract( BigNum& other, BigNum* retVal );
 	void classicalMultiply( BigNum& other, BigNum& retVal );
 	void classicalDivision( BigNum& other, BigNum& quotient, BigNum& remainder );
 	BigNum classicalExponent( BigNum& exponent );

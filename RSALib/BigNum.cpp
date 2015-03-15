@@ -286,14 +286,13 @@ BigNum& BigNum::operator+=(BigNum& other)
 BigNum BigNum::operator-(BigNum& other)
 {
 	static BigNum retVal; // Efficiency? only creates object on stack once?
-	this->classicalSubtract( other, retVal );
+	this->classicalSubtract( other, &retVal );
 	return retVal;
 }
 
 BigNum& BigNum::operator-=(BigNum& other)
 {
-	BigNum retVal = *this - other;
-	*this = retVal;
+	this->classicalSubtract( other, NULL );
 	return *this;
 }
 
@@ -403,22 +402,28 @@ void BigNum::classicalAddition( BigNum& other, BigNum* retVal )
 	retVal->validateNumDigits();
 }
 
-void BigNum::classicalSubtract( BigNum& other, BigNum& retVal )
+void BigNum::classicalSubtract( BigNum& other, BigNum* retVal )
 {
-	BigNum me( *this );
+//	BigNum me( *this );
+	DWORD differenceNumDigits = this->numDigits;
+	if( retVal == NULL )
+		retVal = this;
+	else
+		//		retVal->initialize( this->numDigits );
+		*retVal = *this;
 
-	if( other >= me )
+	if( other >= *this )
 	{
-		retVal.numDigits = 0;
+		retVal->numDigits = 0;
 		return;
 	}
-	retVal.initialize( me.numDigits );
-
+	
+	
 	bool firstNibble = true;
-	for( int result = 0, i = 0, byteOffset = 0; i < (int) retVal.numDigits;
+	for( int result = 0, i = 0, byteOffset = 0; i < (int) differenceNumDigits;
 		i++, firstNibble = !firstNibble, firstNibble ? byteOffset++ : 0 )
 	{
-		BYTE a = me.num[byteOffset];
+		BYTE a = retVal->num[byteOffset];
 		BYTE b = i < (int) other.numDigits ? other.num[byteOffset] : 0;
 		if( firstNibble )
 		{
@@ -437,9 +442,9 @@ void BigNum::classicalSubtract( BigNum& other, BigNum& retVal )
 		if( a < b )
 		{
 			// Find me some digits to use!
-			for( int j = i + 1; j < (int) me.numDigits; j++ )
+			for( int j = i + 1; j < (int) retVal->numDigits; j++ )
 			{
-				nibble* myNibs = (nibble*) &me.num[j / 2];
+				nibble* myNibs = (nibble*) &retVal->num[j / 2];
 				if( j % 2 == 0 )
 				{
 					if( myNibs->nibMost != 0 )
@@ -465,10 +470,11 @@ void BigNum::classicalSubtract( BigNum& other, BigNum& retVal )
 		}
 
 		result = a - b;
-		result = (firstNibble ? result << 4 : result);
-		retVal.num[byteOffset] |= result;
+//		result = (firstNibble ? result << 4 : result);
+//		retVal.num[byteOffset] |= result;
+		retVal->num[byteOffset] = (firstNibble ? (result << 4) | (retVal->num[byteOffset] & 0x0F) : result | (retVal->num[byteOffset] & 0xF0));
 	}
-	retVal.validateNumDigits();
+	retVal->validateNumDigits();
 }
 
 /****************** Elementary method for multiplication: O(n^2) ******************
