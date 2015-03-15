@@ -9,7 +9,6 @@ public:
 	BigNum();
 	BigNum( DWORD numDigits, BYTE* num = NULL, bool reverseOrder = true );
 	BigNum( char* num ); // Must be in hexadecimal
-//	template<typename t> BigNum( T t );
 	BigNum( ULONGLONG );
 	BigNum( const BigNum& other );
 	~BigNum();
@@ -19,12 +18,12 @@ public:
 	bool operator>(BigNum& other);
 	bool operator<(BigNum& other);
 	bool operator==(BigNum& other);
-	bool operator==(ULONGLONG& other);
+	bool operator==(ULONGLONG other);
 	bool operator>=(BigNum& other);
 	bool operator<=(BigNum& other);
-	BigNum& operator=(const BigNum& other);
-	BigNum operator+(const BigNum& other);
-	BigNum& operator+=(const BigNum& other);
+	BigNum& operator=(BigNum& other);
+	BigNum operator+(BigNum& other);
+	BigNum& operator+=(BigNum& other);
 	BigNum operator-(BigNum& other);
 	BigNum& operator-=(BigNum& other);
 	BigNum operator*(BigNum& other);
@@ -34,8 +33,14 @@ public:
 	BigNum operator<<(DWORD other); // AKA multiply by 16 ^ x
 	BigNum operator>>(DWORD other); // AKA divide by 16 ^ x
 
-	BigNum classicalPow(BigNum& other);
+	void classicalAddition( BigNum& other, BigNum* retVal );
+	void classicalSubtract( BigNum& other, BigNum& retVal );
+	void classicalMultiply( BigNum& other, BigNum& retVal );
+	void classicalDivision( BigNum& other, BigNum& quotient, BigNum& remainder );
+	BigNum classicalExponent( BigNum& exponent );
+
 	BigNum pow_modulo( BigNum& power, BigNum& modulo );
+	BigNum karatsubaMultiply( BigNum& other );
 	BigNum modInverse( BigNum& other );
 
 	void clear();
@@ -44,11 +49,15 @@ public:
 	void increaseCapacity( DWORD totalBytes );
 	void padDigits( DWORD totalDigits );
 
+//	static BigNum ULLToBigNum( ULONGLONG num );
+
 //protected:
 	DWORD numDigits; // Total number of digits starting with 1. May include zeros at the beginning
 	DWORD allocatedBytes; // Total number of actual bytes allocated for the number in "num"
-//	bool positive;
 	BYTE* num;
+	static const unsigned short base = 16;
+
+	void validateNumDigits();
 
 #pragma pack(push, 1)
 	union nibble
@@ -62,13 +71,6 @@ public:
 		
 	};
 #pragma pack(pop)
-
-	static const unsigned short base = 16;
-
-	void validateNumDigits();
-	BigNum classicalMultiply( const BigNum& other );
-	BigNum karatsubaMultiply( BigNum& other );
-	void classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder );
 
 };
 

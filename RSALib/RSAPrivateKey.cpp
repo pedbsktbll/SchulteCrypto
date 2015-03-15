@@ -149,23 +149,14 @@ bool RSAPrivateKey::setKey( const char* buff, DWORD buffSize )
 
 BigNum RSAPrivateKey::decipher( BigNum& cipherText )
 {
-// //	return (cipherText ^ privateExponent) % modulus;
-// 	BigNum a = cipherText ^ privateExponent;
-// 
-// // 	DWORD test = a.numDigits + 1;
-// // 	char* arr = new char[test];
-// // 	a.toArray( arr, test );
-// 
-// 	BigNum b = a % modulus;
-// 	return b;
 //	return cipherText.pow_modulo( privateExponent, modulus );
 
 	// inefficient....
 	// Use chinese remainder theorem optimization instead!
 	// m1 = c ^ dp mod p
 	// m2 = c ^ dq mod q
-	// h = qinv(m1 - m2) (mod p)
-	// m = m2 + hq;
+	// h = (qinv * (m1 - m2)) % p
+	// m = m2 + h * q;
 	BigNum one( "1" );
 
 	BigNum m1 = cipherText.pow_modulo(exponent1, prime1);

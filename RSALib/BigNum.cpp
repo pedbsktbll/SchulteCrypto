@@ -198,7 +198,7 @@ bool BigNum::operator==(BigNum& other)
 	return true;
 }
 
-bool BigNum::operator==(ULONGLONG& other)
+bool BigNum::operator==(ULONGLONG other)
 {
 	return this->toULL() == other ? true : false;
 }
@@ -259,7 +259,7 @@ bool BigNum::operator<=(BigNum& other)
 	return true;
 }
 
-BigNum& BigNum::operator=(const BigNum& other)
+BigNum& BigNum::operator=(BigNum& other)
 {
 	this->allocatedBytes = other.allocatedBytes;
 	this->numDigits = other.numDigits;
@@ -270,12 +270,113 @@ BigNum& BigNum::operator=(const BigNum& other)
 	return *this;
 }
 
-BigNum BigNum::operator+(const BigNum& other)
+BigNum BigNum::operator+(BigNum& other)
 {
-	BigNum retVal( (this->numDigits > other.numDigits ? this->numDigits : other.numDigits) + 1 );
-	
+	static BigNum retVal; // Efficiency? only creates object on stack once?
+	this->classicalAddition( other, &retVal );
+	return retVal;
+}
+
+BigNum& BigNum::operator+=(BigNum& other)
+{
+	this->classicalAddition( other, NULL );
+	return *this;
+}
+
+BigNum BigNum::operator-(BigNum& other)
+{
+	static BigNum retVal; // Efficiency? only creates object on stack once?
+	this->classicalSubtract( other, retVal );
+	return retVal;
+}
+
+BigNum& BigNum::operator-=(BigNum& other)
+{
+	BigNum retVal = *this - other;
+	*this = retVal;
+	return *this;
+}
+
+BigNum BigNum::operator*(BigNum& other)
+{
+//	return classicalMultiply( other );
+	return karatsubaMultiply( other );
+}
+
+BigNum BigNum::operator/(BigNum& other)
+{
+	static BigNum quotient, remainder;
+	classicalDivision( other, quotient, remainder );
+	return quotient;
+}
+
+BigNum BigNum::operator%(BigNum& other)
+{
+	static BigNum quotient, remainder;
+	classicalDivision( other, quotient, remainder );
+	return remainder;
+}
+
+BigNum BigNum::operator^(BigNum& other)
+{
+	return classicalExponent( other );
+}
+
+BigNum BigNum::operator<<(DWORD numZeros)
+{
+	BigNum retVal( *this );
+	DWORD newSize = ((retVal.numDigits + 1) / 2) + ((numZeros + 1) / 2);
+	if( retVal.allocatedBytes < newSize )
+		retVal.increaseCapacity( newSize );
+
+	memmove( retVal.num + (numZeros + 1) / 2, retVal.num, (retVal.numDigits + 1) / 2 );
+	SecureZeroMemory( retVal.num, (numZeros + 1) / 2 );
+
+	// If we added an odd number of zeros, now we have to move everything over by a fucking nibble!
+	if( numZeros % 2 != 0 )
+	{
+		BYTE nextByte = 0, newByte = 0;
+		for( DWORD i = 0; i <= retVal.numDigits / 2; i++ )
+			retVal.num[numZeros / 2 + i] = ((retVal.num[numZeros / 2 + i] & 0x0F) << 4) | ((retVal.num[numZeros / 2 + i + 1] & 0xF0) >> 4);
+		if( retVal.numDigits % 2 != 0 )
+			retVal.num[newSize - 1] = 0;
+		else
+			retVal.num[newSize - 1] &= 0xF0;
+	}
+	retVal.numDigits += numZeros;
+	return retVal;
+}
+
+BigNum BigNum::operator>>(DWORD other)
+{
+	BigNum retVal( *this );
+	memmove( retVal.num, retVal.num + other / 2, (retVal.numDigits - other + 1) / 2 );
+	SecureZeroMemory( retVal.num + (retVal.numDigits - other + 1) / 2, other / 2 );
+
+	// If we added an odd number of zeros, now we have to move everything over by a fucking nibble!
+	if( other % 2 != 0 )
+	{
+		BYTE nextByte = 0, newByte = 0;
+		for( DWORD i = 0; i < retVal.numDigits / 2; i++ )
+			retVal.num[i] = ((retVal.num[i] & 0x0F) << 4) | ((i + 1 >= retVal.allocatedBytes) ? 0 : ((retVal.num[i + 1] & 0xF0) >> 4));
+	}
+	retVal.numDigits -= other;
+	return retVal;
+}
+
+void BigNum::classicalAddition( BigNum& other, BigNum* retVal )
+{
+	DWORD sumNumDigits = (this->numDigits > other.numDigits ? this->numDigits : other.numDigits) + 1;
+	if( retVal == NULL )
+	{
+		retVal = this;
+		retVal->padDigits( sumNumDigits );
+	}
+	else
+		retVal->initialize( sumNumDigits );
+
 	bool firstNibble = true;
-	for( int carry = 0, result = 0, i = 0, byteOffset = 0; i < (int) retVal.numDigits;
+	for( int carry = 0, result = 0, i = 0, byteOffset = 0; i < (int) sumNumDigits;
 		i++, firstNibble = !firstNibble, firstNibble ? byteOffset++ : 0 )
 	{
 		BYTE a = i < (int) this->numDigits ? this->num[byteOffset] : 0;
@@ -295,27 +396,23 @@ BigNum BigNum::operator+(const BigNum& other)
 
 		result = carry + a + b;
 		carry = result / base;
-		result = ( firstNibble ? (result % base) << 4 : (result % base) );
-		retVal.num[byteOffset] |= result;
+//		result = (firstNibble ? (result % base) << 4 : (result % base));
+//		retVal->num[byteOffset] |= result;
+		retVal->num[byteOffset] = (firstNibble ? ((result % base) << 4) | (retVal->num[byteOffset] & 0x0F) : (result % base) | (retVal->num[byteOffset] & 0xF0));
 	}
-	retVal.validateNumDigits();
-	return retVal;
+	retVal->validateNumDigits();
 }
 
-BigNum& BigNum::operator+=(const BigNum& other)
-{
-	BigNum retVal = *this + other;
-	*this = retVal;
-	return *this;
-}
-
-BigNum BigNum::operator-(BigNum& other)
+void BigNum::classicalSubtract( BigNum& other, BigNum& retVal )
 {
 	BigNum me( *this );
-	BigNum retVal( me.numDigits );
-	
+
 	if( other >= me )
-		return retVal;
+	{
+		retVal.numDigits = 0;
+		return;
+	}
+	retVal.initialize( me.numDigits );
 
 	bool firstNibble = true;
 	for( int result = 0, i = 0, byteOffset = 0; i < (int) retVal.numDigits;
@@ -368,154 +465,10 @@ BigNum BigNum::operator-(BigNum& other)
 		}
 
 		result = a - b;
-		result = (firstNibble ? result << 4 : result );
+		result = (firstNibble ? result << 4 : result);
 		retVal.num[byteOffset] |= result;
 	}
 	retVal.validateNumDigits();
-	return retVal;
-}
-
-BigNum& BigNum::operator-=(BigNum& other)
-{
-	BigNum retVal = *this - other;
-	*this = retVal;
-	return *this;
-}
-
-BigNum BigNum::operator*(BigNum& other)
-{
-//	return classicalMultiply( other );
-	return karatsubaMultiply( other );
-}
-
-BigNum BigNum::operator/(BigNum& other)
-{
-	BigNum quotient, remainder;
-	classicalDivide( other, quotient, remainder );
-	return quotient;
-}
-
-BigNum BigNum::operator%(BigNum& other)
-{
-	BigNum quotient, remainder;
-	classicalDivide( other, quotient, remainder );
-	return remainder;
-}
-
-/****************** Exponentiation by squaring: O((n*log(x))^k) ******************
-x^15 = (x^7)*(x^7)*x
-x^7 = (x^3)*(x^3)*x
-x^3 = x*x*x
-**************************************************************************/
-BigNum BigNum::operator^(BigNum& other)
-{
-	BigNum zero( "0" );
-	BigNum one( "1" );
-	BigNum two( "2" );
-	if( other.numDigits == 0 || other == zero )
-		return one;
-	if( other == one )
-		return *this;
-
-	BigNum halved = *this ^ (other / two);
-// 	BigNum testHalved = this->classicalPow( other / two );
-// 	if( !(halved == testHalved) )
-// 	{
-// 		DebugBreak();
-// 	}
-
-//	DWORD d = halved.numDigits + 1;
-// 	char* arr = new char[d];
-// 	halved.toArray( arr, d );
-
-	return other % two == zero ? halved * halved : halved * halved * *this;
-}
-
-BigNum BigNum::classicalPow( BigNum& other )
-{
-	BigNum zero( "0" );
-	BigNum one( "1" );
-	BigNum two( "2" );
-	if( other.numDigits == 0 || other == zero )
-		return one;
-	if( other == one )
-		return *this;
-
-	BigNum halved = this->classicalPow(other / two);
-
-	//	DWORD d = halved.numDigits + 1;
-	// 	char* arr = new char[d];
-	// 	halved.toArray( arr, d );
-
-	BigNum m = halved.classicalMultiply( halved );
-	return other % two == zero ? m : m.classicalMultiply(*this);
-}
-
-BigNum BigNum::pow_modulo( BigNum& power, BigNum& modulo )
-{
-	BigNum zero( "0" );
-	BigNum one( "1" );
-	BigNum two( "2" );
-	if( power.numDigits == 0 || power == zero )
-		return one;
-	if( power == one )
-		return *this;
-
-	BigNum halved = this->pow_modulo( power / two, modulo );
-	// 	BigNum testHalved = this->classicalPow( other / two );
-	// 	if( !(halved == testHalved) )
-	// 	{
-	// 		DebugBreak();
-	// 	}
-
-	//	DWORD d = halved.numDigits + 1;
-	// 	char* arr = new char[d];
-	// 	halved.toArray( arr, d );
-
-//	BigNum retVal = power.num[0] % 2 == 0 ? halved * halved : halved * halved * *this;
-	return ((power.num[0] & 0xF0) >> 4) % 2 == 0 ? (halved * halved) % modulo : (halved * halved * *this) % modulo;
-}
-
-BigNum BigNum::operator<<(DWORD numZeros)
-{
-	BigNum retVal( *this );
-	DWORD newSize = ((retVal.numDigits + 1) / 2) + ((numZeros + 1) / 2);
-	if( retVal.allocatedBytes < newSize )
-		retVal.increaseCapacity( newSize );
-
-	memmove( retVal.num + (numZeros + 1) / 2, retVal.num, (retVal.numDigits + 1) / 2 );
-	SecureZeroMemory( retVal.num, (numZeros + 1) / 2 );
-
-	// If we added an odd number of zeros, now we have to move everything over by a fucking nibble!
-	if( numZeros % 2 != 0 )
-	{
-		BYTE nextByte = 0, newByte = 0;
-		for( DWORD i = 0; i <= retVal.numDigits / 2; i++ )
-			retVal.num[numZeros / 2 + i] = ((retVal.num[numZeros / 2 + i] & 0x0F) << 4) | ((retVal.num[numZeros / 2 + i + 1] & 0xF0) >> 4);
-		if( retVal.numDigits % 2 != 0 )
-			retVal.num[newSize - 1] = 0;
-		else
-			retVal.num[newSize - 1] &= 0xF0;
-	}
-	retVal.numDigits += numZeros;
-	return retVal;
-}
-
-BigNum BigNum::operator>>(DWORD other)
-{
-	BigNum retVal( *this );
-	memmove( retVal.num, retVal.num + other / 2, (retVal.numDigits - other + 1) / 2 );
-	SecureZeroMemory( retVal.num + (retVal.numDigits - other + 1) / 2, other / 2 );
-
-	// If we added an odd number of zeros, now we have to move everything over by a fucking nibble!
-	if( other % 2 != 0 )
-	{
-		BYTE nextByte = 0, newByte = 0;
-		for( DWORD i = 0; i < retVal.numDigits / 2; i++ )
-			retVal.num[i] = ((retVal.num[i] & 0x0F) << 4) | ((i + 1 >= retVal.allocatedBytes) ? 0 : ((retVal.num[i + 1] & 0xF0) >> 4));
-	}
-	retVal.numDigits -= other;
-	return retVal;
 }
 
 /****************** Elementary method for multiplication: O(n^2) ******************
@@ -528,9 +481,9 @@ BigNum BigNum::operator>>(DWORD other)
 -------- +
 26852661 <-- Add up results, remember to carry
  **************************************************************************/
-BigNum BigNum::classicalMultiply( const BigNum& other )
+void BigNum::classicalMultiply( BigNum& other, BigNum& retVal )
 {
-	const BigNum* bot, *top;
+	const BigNum *bot, *top;
 	if( this->numDigits >= other.numDigits )
 	{
 		bot = &other;
@@ -543,7 +496,8 @@ BigNum BigNum::classicalMultiply( const BigNum& other )
 	}
 
 	// Multiplies everything out
-	BigNum retVal( bot->numDigits + top->numDigits );
+//	retVal.padDigits( bot->numDigits + top->numDigits );
+	retVal.initialize( bot->numDigits + top->numDigits );
 	for( int i = 0, bByteOffset = 0, carry = 0, retValIndx = 0, bFirstNibble = true; i < (int) bot->numDigits;
 		i++, bFirstNibble = !bFirstNibble, bFirstNibble ? bByteOffset++ : 0 )
 	{
@@ -564,78 +518,9 @@ BigNum BigNum::classicalMultiply( const BigNum& other )
 		retVal.num[retValIndx / 2] |= ((retValIndx % 2 == 0) ? (carry % base) << 4 : (carry % base));
 	}
 	retVal.validateNumDigits();
-	return retVal;
 }
 
-BigNum BigNum::karatsubaMultiply( BigNum& other )
-{
-	this->validateNumDigits();
-	other.validateNumDigits();
-	if( this->numDigits == 0 || other.numDigits == 0 )
-		return (ULONGLONG) 0;
-
-	if( numDigits <= 7 && other.numDigits <= 7 )
-	{
-		return this->toULL() * other.toULL();
-// 		BigNum retVal = this->toULL() * other.toULL();
-// 		BigNum test = this->classicalMultiply( other );
-// 		if( !(retVal == test) )
-// 		{
-// 			DebugBreak();
-// 		}
-// 		return retVal;
-	}
-
-	if( this->numDigits <= 2 || other.numDigits <= 2 )
-		return this->classicalMultiply( other );
-
-	DWORD totalDigits = this->numDigits > other.numDigits ? this->numDigits : other.numDigits;
-	DWORD m = (totalDigits + 1) / 2;
-
-	// m must be less than both string lenths
-	if( this->numDigits < m || other.numDigits < m )
-		return this->classicalMultiply( other );
-
-	this->padDigits( totalDigits );
-	other.padDigits( totalDigits );
-
-	// Get the lower half and upper half of each of the numbers to multiply
-	BigNum thisLow( totalDigits ), otherLow( totalDigits ), thisHigh( totalDigits ), otherHigh( totalDigits ), thisSum( totalDigits ), otherSum( totalDigits );
-
-	// From offset (totalDigits - m) / 2, we want (m + 1) / 2 BYTES for our low
-	memcpy( thisLow.num, this->num, (m + 1) / 2 );
-	memcpy( otherLow.num, other.num, (m + 1) / 2 );
-
-	// From offset 0, we want total digits - m DIGITS for our high
-	memcpy( thisHigh.num, &this->num[m / 2], ((totalDigits + 1) / 2) - m / 2 );
-	memcpy( otherHigh.num, &other.num[m / 2], ((totalDigits + 1) / 2) - m / 2 );
-//	if( totalDigits > 3 && totalDigits % 2 != 0 )
-	if( m % 2 != 0 )
-	{
-		thisLow.num[m / 2] &= 0xF0;
-		thisHigh = thisHigh >> 1;
-		otherLow.num[m / 2] &= 0xF0;
-		otherHigh = otherHigh >> 1;
-	}
-	thisSum = thisLow + thisHigh;
-	otherSum = otherLow + otherHigh;
-
-	// [ this * other ] = [ x * y ] = [(x1 * B^m + x0) * (y1 * B^m + y0)] = (x1 * B^m + x0) * (y1 * B^m + y0) = [z2 * B^2m + z1 * B^m + z0]
-	BigNum z2 = thisHigh.karatsubaMultiply( otherHigh );
-	BigNum z0 = thisLow.karatsubaMultiply( otherLow ); 
-	BigNum z1 = thisSum.karatsubaMultiply( otherSum ) - z2 - z0;
-	
-//	m = totalDigits - m;
-//	z2.addZeros( 2 * m ); // z2 = z2 * 16 ^ ( 2 * 2 )
-	z2 = z2 << (2 * m);
-//	z1.addZeros( m ); // z1 = z1 * 16 ^ (2 )
-	z1 = z1 << m;
-	BigNum retVal = z2 + z1 + z0;
-	return retVal;
-}
-
-
-void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder )
+void BigNum::classicalDivision( BigNum& other, BigNum& quotient, BigNum& remainder )
 {
 	this->validateNumDigits();
 	other.validateNumDigits();
@@ -712,6 +597,122 @@ void BigNum::classicalDivide( BigNum& other, BigNum& quotient, BigNum& remainder
 	remainder = dividendWorkingSet;
 	remainder.validateNumDigits();
 	quotient.validateNumDigits();
+}
+
+/****************** Exponentiation by squaring: O((n*log(x))^k) ******************
+x^15 = (x^7)*(x^7)*x
+x^7 = (x^3)*(x^3)*x
+x^3 = x*x*x
+**************************************************************************/
+BigNum BigNum::classicalExponent( BigNum& exponent )
+{
+	BigNum retVal, halved, two( "2" );
+	if( exponent.numDigits == 0 || exponent == 0 )
+		return (ULONGLONG) 1;
+	if( exponent == 1 )
+		return *this;
+
+	halved = classicalExponent( exponent / two );
+
+	//	DWORD d = halved.numDigits + 1;
+	// 	char* arr = new char[d];
+	// 	halved.toArray( arr, d );
+
+	halved.classicalMultiply( halved, retVal );
+	if( ((exponent.num[0] & 0xF0) >> 4) % 2 != 0 )
+	{
+		halved = retVal;
+		halved.classicalMultiply( *this, retVal );
+	}
+	return retVal;
+}
+
+BigNum BigNum::pow_modulo( BigNum& power, BigNum& modulo )
+{
+	BigNum two( "2" );
+	if( power.numDigits == 0 || power == 0 )
+		return (ULONGLONG) 1;
+	if( power == 1 )
+		return *this;
+
+	BigNum halved = this->pow_modulo( power / two, modulo );
+	// 	BigNum testHalved = this->classicalPow( other / two );
+	// 	if( !(halved == testHalved) )
+	// 	{
+	// 		DebugBreak();
+	// 	}
+
+	//	DWORD d = halved.numDigits + 1;
+	// 	char* arr = new char[d];
+	// 	halved.toArray( arr, d );
+
+	//	BigNum retVal = power.num[0] % 2 == 0 ? halved * halved : halved * halved * *this;
+	return ((power.num[0] & 0xF0) >> 4) % 2 == 0 ? (halved * halved) % modulo : (halved * halved * *this) % modulo;
+}
+
+BigNum BigNum::karatsubaMultiply( BigNum& other )
+{
+	BigNum retVal;
+	this->validateNumDigits();
+	other.validateNumDigits();
+	if( this->numDigits == 0 || other.numDigits == 0 )
+		return (ULONGLONG) 0;
+
+	if( numDigits <= 7 && other.numDigits <= 7 )
+		return this->toULL() * other.toULL();
+
+	if( this->numDigits <= 2 || other.numDigits <= 2 )
+	{
+		this->classicalMultiply( other, retVal );
+		return retVal;
+	}
+
+	DWORD totalDigits = this->numDigits > other.numDigits ? this->numDigits : other.numDigits;
+	DWORD m = (totalDigits + 1) / 2;
+
+	// m must be less than both string lenths
+	if( this->numDigits < m || other.numDigits < m )
+	{
+		this->classicalMultiply( other, retVal );
+		return retVal;
+	}
+
+	this->padDigits( totalDigits );
+	other.padDigits( totalDigits );
+
+	// Get the lower half and upper half of each of the numbers to multiply
+	BigNum thisLow( totalDigits ), otherLow( totalDigits ), thisHigh( totalDigits ), otherHigh( totalDigits ), thisSum( totalDigits ), otherSum( totalDigits );
+
+	// From offset (totalDigits - m) / 2, we want (m + 1) / 2 BYTES for our low
+	memcpy( thisLow.num, this->num, (m + 1) / 2 );
+	memcpy( otherLow.num, other.num, (m + 1) / 2 );
+
+	// From offset 0, we want total digits - m DIGITS for our high
+	memcpy( thisHigh.num, &this->num[m / 2], ((totalDigits + 1) / 2) - m / 2 );
+	memcpy( otherHigh.num, &other.num[m / 2], ((totalDigits + 1) / 2) - m / 2 );
+	//	if( totalDigits > 3 && totalDigits % 2 != 0 )
+	if( m % 2 != 0 )
+	{
+		thisLow.num[m / 2] &= 0xF0;
+		thisHigh = thisHigh >> 1;
+		otherLow.num[m / 2] &= 0xF0;
+		otherHigh = otherHigh >> 1;
+	}
+	thisSum = thisLow + thisHigh;
+	otherSum = otherLow + otherHigh;
+
+	// [ this * other ] = [ x * y ] = [(x1 * B^m + x0) * (y1 * B^m + y0)] = (x1 * B^m + x0) * (y1 * B^m + y0) = [z2 * B^2m + z1 * B^m + z0]
+	BigNum z2 = thisHigh.karatsubaMultiply( otherHigh );
+	BigNum z0 = thisLow.karatsubaMultiply( otherLow );
+	BigNum z1 = thisSum.karatsubaMultiply( otherSum ) - z2 - z0;
+
+	//	m = totalDigits - m;
+	//	z2.addZeros( 2 * m ); // z2 = z2 * 16 ^ ( 2 * 2 )
+	z2 = z2 << (2 * m);
+	//	z1.addZeros( m ); // z1 = z1 * 16 ^ (2 )
+	z1 = z1 << m;
+	retVal = z2 + z1 + z0;
+	return retVal;
 }
 
 void BigNum::validateNumDigits()
