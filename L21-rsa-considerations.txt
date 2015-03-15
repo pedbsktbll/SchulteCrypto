@@ -1,0 +1,196 @@
+Using RSA in practice
+=====================
+
+administrivia
+    Wednesday will be a guest lecture by George Hotz
+    same time but in a larger auditorium (35-225)
+
+    please fill out the HKN class evaluations (link on 6.857 web site)
+
+RSA performance
+    largely bottlenecked by modular exponentiation: c=m^e mod n, m=c^d mod n
+	modular exponentiation is O(n^3) [n being the input size, not n=pq],
+	when base and exponent are roughly comparable in size
+    several important optimizations improve performance (e.g. in OpenSSL)
+
+optimization 1: make e small (e.g. 3)
+    makes encryption (or signature verify) fast, ~quadratic instead of cubic
+
+    potential problem (similar to PS3): could be insecure if message is small
+	e.g. 128-bit AES key encrypted with 1024-bit RSA
+	cube of AES key (384 bits) never gets reduced modulo n
+    RSA-OAEP (mentioned in earlier lecture on RSA) fixes this problem
+	any message padded to |n| bits in length, high bits pseudo-random
+	thus, modular reductions will happen with high prob.
+
+optimization 2: CRT
+    even if e is small, still expensive to compute c^d mod n
+	i.e. decryption or signing
+	but, if we know private key d, we also know factorization of n (p and q)
+    CRT: given (x mod p) and (x mod q), can efficiently compute (x mod pq),
+	 if p and q are relatively prime
+    compute m1=c^d (mod p)
+	    m2=c^d (mod q)
+	    m=CRT(m1,m2)=m2+q*((m1-m2)/q mod p)
+	    [can pre-compute 1/q mod p]
+    why is this correct?
+	known: if two numbers are equal mod p and mod q, they're equal mod pq
+	m mod q = m2 = c^d mod q.  OK
+	m mod p = m2 mod p + (m1-m2) mod p = m1 mod p = c^d mod p.  OK
+	so, m = c^d mod n
+    why is this faster?
+	shrink c and d to |p| bits instead of |n| bits, for mod. exp.:
+	    m1 = c^d (mod p) = c1^d1 (mod p), where
+	    c1 = c mod p
+	    d1 = d mod (p-1)
+	d1 is OK since, recall from number theory lecture, x^(p-1)=1 mod p
+	as a result, each mod. exp. is 8 times faster (cubic) than original
+	complete computation (2 mod exp) is about 4 times faster than original
+
+    potential problem: susceptible to fault injection (if decryption revealed)
+	[Boneh '97]
+	i.e. what if we screw up one of the two modular exponentiations?
+	m1'=random (mod p)
+	m2 =c^d (mod q)
+	m' =CRT(m1', m2) = m2+q*((m1'-m2)/q mod p)
+	if private key holder reveals m' to adversary, adversary can compute q!
+	    recall, m=CRT(m1, m2) = m2+q*((m1-m2)/q mod p)
+	    m'-m = q*((m1'-m2)/q mod p) - q*((m1-m2)/q mod p)
+	    easy to compute: gcd(m'-m mod n, n) = q
+
+    how to defend?
+	double-check the computation
+	for sign or decrypt, run verify or encrypt (relatively cheap)
+	not a problem for verify or encrypt -- not using CRT!
+
+optimization 3: repeated squaring and sliding windows
+    recall repeated squaring (one multiply per high bit in exponent):
+	c^(2x)   = (c^x)^2
+	c^(2x+1) = (c^x)^2*c
+    generalization of repeated squaring (one multiply per k bits in exponent):
+	let's say k=5
+	c^(2x)       = (c^x)^2
+	c^(32x+2z+1) = (c^x)^32 * c^(2z+1)
+	    same number of squarings, one multiply for group of k bits
+	    pre-compute odd powers of c: c, c^3, c^5, .., c^(2^k-1)
+
+    potential problem: susceptible to cache access pattern side-channel attacks
+	[Percival]
+	suppose adversary's process is running concurrently (multi-core CPU)
+	pre-computed powers of c stored in linear array, in shared CPU cache
+	adversary can monitor which cache lines are evicted over time
+	    e.g. store another array, watch latency for accessing cache lines
+	    cache lines between two arrays conflict with one another
+	can compute a good guess for some bits of private key d
+
+    how to defend?
+	no great cryptographic defenses (hide memory access patterns)
+	ideally, would like hardware help
+	work-arounds: OS scheduling policies, noisy/coarse-grained clock
+	    (note: hard to get rid of clock in shared-memory multicore system)
+
+optimization 4: montgomery multiplication
+    reducing mod p each time during modular exponentiation is expensive
+	e.g. do long division and find remainder
+	but if we don't reduce mod p at each step, value grows out of control
+    trick: shift numbers into different representation upfront
+	   shift numbers back into original representation afterwards
+	   modular reduction will be much cheaper in the alternate rep.
+
+    montgomery representation: multiply by factor R, |R| = |q|
+	a mod q	<-> aR mod q
+	b mod q	<-> bR mod q
+	c=ab mod q	<-> cR = aR*bR/R mod q ( = ab*RR/R = ab*R)
+	multiplication in montgomery-space requires extra division by R
+
+    why is modular multiplication cheaper in montgomery rep?
+	we get to choose R to make division by R easy (e.g. power of 2)
+	because we divide by R, we will often not need to do mod q
+	    i.e. |aR|      = |q|
+		 |bR|      = |q|
+		 |aR*bR|   = 2|q|
+		 |aR*bR/R| = |q|
+
+    how do we divide by R cheaply?  need |q| lower zero bits!
+	idea: add multiples of q to make lower bits zero
+	      changes the lower bits, but number is equivalent mod q
+	low bit of q is necessarily 1 (q is prime)
+	can "shoot down" any bit k by adding 2^k*q
+	can efficiently compute what we need to add to cancel out low bits
+	    if low bits are l, then add q*(l*(-q^-1) mod R)
+	    adding this mod q makes no difference
+	    adding this mod R adds -l to the low bits (+ other high bits)
+
+    so, montgomery multiplication:
+	multiply aR * bR
+	add multiple of q, to make division by R easy
+	divide by R (simply shift out the low zero bits)
+	if the result happens to be greater than q, need to subtract q
+	    called the "extra reduction"
+
+    potential problem: number of extra reductions leaks info about q
+	[Kocher; Brumley]
+	Schindler's observation: P(extra reduction for cR^d mod q)=(cR mod q)/2R
+	i.e., as cR approaches q, probability grows, then quickly drops off
+	    makes sense, intuitively
+	    if multiplying by small factor, less chance we will overshoot q
+	    if multiplying by large factor, more likely to overshoot q
+	extra overhead of subtracting q is small but measurable
+
+	chosen-ciphertext timing attack: adversary knows c, but doesn't know q
+	    (implemented against OpenSSL by Brumley and Boneh, 2003)
+	    estimate if c is a little below or above q, using decryption time
+	    plot of decryption time vs. c value:
+		slow rise, sharp drop-off at multiples of p and q
+
+    how to defend?
+	RSA blinding works well in practice
+	    choose random blinding factor r
+	    instead of decrypting (or signing) c, decrypt c*r^e
+	    result will be m*r, recover m given r
+	    cryptographic computation "independent" of either c or m
+	some performance overhead for blinding, on the order of <10%
+	alternative defense: make all operations take constant time
+	    always perform a dummy extra reduction
+	    or just wait at the end of decryption so all ops take same time
+	    fragile, can in some cases be inefficient too
+
+optimization 5: efficient multiplication
+    how to multiply two 512-bit numbers?
+	e.g. for 1024-bit RSA (although 1024 bits is probably too few, now)
+    straightforward plan:
+	represent each number as 16 32-bit numbers
+	perform 16x16 multiplications, then 16x16-31 additions
+	so, quadratic algorithm -- O(n^2) [again, n is not n=pq]
+    Karatsuba multiplication, if the number of digits is the same (sketch):
+	suppose we have base B (e.g. 2^32), and we're multiplying numbers O(B^2)
+	    x = x1*B + x0
+	    y = y1*B + y0
+	    z = xy = z2*B^2 + z1*B + z0
+	normal multiplication (4 multiplies):
+	    z2 = x1y1
+	    z1 = x1y0 + x0y1
+	    z0 = x0y0
+	Karatsuba's observation:
+	    z1 = (x1+x0)(y1+y0) - z2 - z0
+	       = x1y1 + x1y0 + x0y1 + x0y0 - x1y1 - x0y0
+	       = x1y0 + x0y1
+	just need 3 multiplications, and some extra additions/subtractions
+	in general, multiply two numbers in O(n^log_3(2)) = O(n^1.585) time
+	only works if two numbers have the same length (e.g. in 32-bit units)
+
+    potential problem: adversary can measure multiplication performance
+	if performance is fast, must be using karatsuba (i.e. c mod q large)
+	if performance is slow, must be using traditional (i.e. c mod q small)
+	Brumley and Boneh used it as part of the previous attack
+
+    defense: same as above (for optimization 4), blinding works well
+
+closing administrivia
+    guest lecture this Wednesday, in 35-225
+    project presentations next week
+    if you're interested in security, other courses that might be interesting:
+	6.858	systems security (fall)
+	6.875	grad-level crypto (spring)
+	6.876	grad-level crypto (fall)
+
