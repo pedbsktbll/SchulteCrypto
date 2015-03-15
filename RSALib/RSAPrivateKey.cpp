@@ -158,17 +158,20 @@ BigNum RSAPrivateKey::decipher( BigNum& cipherText )
 // 
 // 	BigNum b = a % modulus;
 // 	return b;
-	return cipherText.pow_modulo( privateExponent, modulus );
+//	return cipherText.pow_modulo( privateExponent, modulus );
 
-// 	// inefficient....
-// 	// Use chinese remainder theorem optimization instead!
-// 	// m1 = c ^ dp mod p
-// 	// m2 = c ^ dq mod q
-// 	// h = qinv(m1 - m2) (mod p)
-// 	// m = m2 + hq;
-// 	BigNum m1 = (cipherText ^ exponent1) % prime1;
-// 	BigNum m2 = (cipherText ^ exponent2) % prime2;
-// 	BigNum h = coefficient * (m1 - m2) % prime1;
-// 	BigNum m = m2 + h;
-// 	return m;
+	// inefficient....
+	// Use chinese remainder theorem optimization instead!
+	// m1 = c ^ dp mod p
+	// m2 = c ^ dq mod q
+	// h = qinv(m1 - m2) (mod p)
+	// m = m2 + hq;
+	BigNum one( "1" );
+
+	BigNum m1 = cipherText.pow_modulo(exponent1, prime1);
+	BigNum m2 = cipherText.pow_modulo(exponent2, prime2);
+
+	BigNum h = m2 < m1 ? (coefficient * (m1 - m2)) % prime1 : coefficient * ((m1 + (((prime2 / prime1) + one) * prime1)) - m2) % prime1;
+	BigNum m = m2 + h * prime2;
+	return m;
 }

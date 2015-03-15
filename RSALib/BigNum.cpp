@@ -799,3 +799,9 @@ ULONGLONG BigNum::toULL()
 		b[i] = ((this->num[i] & 0xF0) >> 4) | ((this->num[i] & 0x0F) << 4);
 	return retVal;
 }
+
+BigNum BigNum::modInverse( BigNum& other )
+{
+	BigNum two( "2" );
+	return pow_modulo(other - two, other);
+}

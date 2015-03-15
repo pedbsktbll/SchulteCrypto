@@ -36,6 +36,7 @@ public:
 
 	BigNum classicalPow(BigNum& other);
 	BigNum pow_modulo( BigNum& power, BigNum& modulo );
+	BigNum modInverse( BigNum& other );
 
 	void clear();
 	bool toArray(char* array, DWORD& len);
