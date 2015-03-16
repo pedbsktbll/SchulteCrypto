@@ -90,7 +90,8 @@ bool RSAPublicKey::cipher( BYTE* buffer, DWORD& bufferSize, DWORD& commitSize )
 	// Now convert octet-string to integer (BigNum). First octet of EB has the most significance:
 	BigNum plainText;
 	plainText.initialize( k, buffer );
-	plainText = (plainText ^ publicExponent) % modulus;
+//	plainText = (plainText ^ publicExponent) % modulus;
+	plainText.pow_modulo( publicExponent, modulus );
 
 	// PlainText is now RSA-encrypted. Now let's convert back to an octet-string:
 	return true;

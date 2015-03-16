@@ -657,13 +657,14 @@ x^3 = x*x*x
 **************************************************************************/
 BigNum BigNum::classicalExponent( BigNum& exponent )
 {
-	BigNum retVal, halved, two( "2" );
+	BigNum retVal, halved, two;
 	if( exponent.numDigits == 0 || exponent == 0 )
 		return (ULONGLONG) 1;
 	if( exponent == 1 )
 		return *this;
 
-	halved = classicalExponent( exponent / two );
+	exponent.right_shift( 1, &two );
+	halved = classicalExponent( two );
 
 	//	DWORD d = halved.numDigits + 1;
 	// 	char* arr = new char[d];
@@ -680,13 +681,14 @@ BigNum BigNum::classicalExponent( BigNum& exponent )
 
 BigNum BigNum::pow_modulo( BigNum& power, BigNum& modulo )
 {
-	BigNum two( "2" );
+	BigNum two;
 	if( power.numDigits == 0 || power == 0 )
 		return (ULONGLONG) 1;
 	if( power == 1 )
 		return *this;
 
-	BigNum halved = this->pow_modulo( power / two, modulo );
+	power.right_shift( 1, &two );
+	BigNum halved = this->pow_modulo( two, modulo );
 	// 	BigNum testHalved = this->classicalPow( other / two );
 	// 	if( !(halved == testHalved) )
 	// 	{
@@ -858,7 +860,7 @@ BigNum BigNum::modInverse( BigNum& other )
 	return pow_modulo(other - two, other);
 }
 
-void BigNum::left_shift( ULONGLONG numShifts, BigNum* retVal )
+void BigNum::left_shift( DWORD numShifts, BigNum* retVal )
 {
 	if( retVal == NULL )
 		retVal = this;
@@ -881,7 +883,7 @@ void BigNum::left_shift( ULONGLONG numShifts, BigNum* retVal )
 		retVal->right_shift( 8 - lftShiftRemainder, NULL );
 }
 
-void BigNum::right_shift( ULONGLONG numShifts, BigNum* retVal )
+void BigNum::right_shift( DWORD numShifts, BigNum* retVal )
 {
 	if( retVal == NULL )
 		retVal = this;
@@ -918,4 +920,6 @@ void BigNum::right_shift( ULONGLONG numShifts, BigNum* retVal )
 	}
 
 	retVal->numDigits -= numShifts / 4;
+	if( numShifts % 4 != 0 )
+		retVal->validateNumDigits();
 }
