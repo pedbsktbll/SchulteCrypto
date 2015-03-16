@@ -35,12 +35,30 @@ int wmain( int argc, wchar_t* argv[] )
 {
  //	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 //	Sleep( 1000 * 10 );
- 	return DriverRSA();
-//  	BigNum a( "a8e9" );
+// 	return DriverRSA();
+  	BigNum a( "a8e9" );
 //  	BigNum b( "26d" );
 //  	BigNum c = a + b;
 //  	BigNum d = a * b;
 //  	BigNum e = a - b;
+	BigNum f;
+	a.right_shift(4, &f);
+	a.right_shift(8, &f );
+	a.right_shift(16, &f );
+	a.right_shift(32, &f );
+	a.right_shift(3, &f );
+	a.right_shift( 7, &f );
+	a.right_shift( 9, &f );
+	a.right_shift( 13, &f );
+
+	a.left_shift( 4, &f );
+	a.left_shift( 8, &f );
+	a.left_shift( 16, &f );
+	a.left_shift( 32, &f );
+	a.left_shift( 3, &f );
+	a.left_shift( 7, &f );
+	a.left_shift( 9, &f );
+	a.left_shift( 13, &f );
 // 
 // 	BigNum f( "1000000000" );
 // 	BigNum g( "1" );

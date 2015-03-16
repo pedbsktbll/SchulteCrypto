@@ -45,6 +45,9 @@ public:
 	BigNum karatsubaMultiply( BigNum& other );
 	BigNum modInverse( BigNum& other );
 
+	void left_shift( ULONGLONG numShifts, BigNum* retVal );
+	void right_shift( ULONGLONG numShifts, BigNum* retVal );
+
 	void clear();
 	bool toArray(char* array, DWORD& len);
 	ULONGLONG toULL();

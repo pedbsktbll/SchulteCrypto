@@ -95,6 +95,7 @@ int DriverRSA()
 	if( !(out == cipherText) )
 	{
 		puts( "Error: encryption failed" );
+		return -1;
 	}
 	puts( "Encryption succeeded!" );
 
@@ -112,6 +113,7 @@ int DriverRSA()
 	if( !(plainText2 == plainText) )
 	{
 		puts( "Error: decryption failed" );
+		return -2;
 	}
 	puts( "Decryption succeeded!" );
 

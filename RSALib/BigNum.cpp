@@ -857,3 +857,65 @@ BigNum BigNum::modInverse( BigNum& other )
 	BigNum two( "2" );
 	return pow_modulo(other - two, other);
 }
+
+void BigNum::left_shift( ULONGLONG numShifts, BigNum* retVal )
+{
+	if( retVal == NULL )
+		retVal = this;
+	else
+		*retVal = *this;
+
+	DWORD newSize = (retVal->numDigits * 4 + numShifts + 7) / 8; 
+	if( retVal->allocatedBytes < newSize )
+		retVal->increaseCapacity( newSize );
+
+	// Move (numShifts + 7) / 8... This *may* shift us too far...
+	memmove( retVal->num + (numShifts + 7) / 8, retVal->num, (retVal->numDigits + 1) / 2 );
+	SecureZeroMemory( retVal->num, (numShifts + 7) / 8 );
+//	retVal->numDigits += (numShifts + 3) / 4;
+	retVal->numDigits += ((numShifts + 7) / 8) * 2;
+
+	// We may have shifted too far! If so, we right shift back 8 - numShifts % 8 ! :D Hopefully we don't right shift too far
+	DWORD lftShiftRemainder = numShifts % 8;
+	if( lftShiftRemainder != 0 )
+		retVal->right_shift( 8 - lftShiftRemainder, NULL );
+}
+
+void BigNum::right_shift( ULONGLONG numShifts, BigNum* retVal )
+{
+	if( retVal == NULL )
+		retVal = this;
+	else
+		*retVal = *this;
+
+	if( numShifts / 8 >= (retVal->numDigits + 1) / 2 )
+	{
+		retVal->numDigits = 0;
+		SecureZeroMemory( retVal->num, retVal->allocatedBytes );
+		return;
+	}
+
+	// Let's actually right shift by the % 8 per byte first, THEN move the block
+	int rtShiftRemainder = numShifts % 8;
+	if( rtShiftRemainder != 0 )
+	{
+		BYTE nextByte = 0x00;
+		for( int i = ((this->numDigits + 1) / 2) - 1; i >= (int) (numShifts / 8); i-- )
+		{
+			BYTE thisByte = ((retVal->num[i] & 0xF0) >> 4) | ((retVal->num[i] & 0x0F) << 4); // Flip the nibbles, as this is how it's interpreted...
+			BYTE thisLeftover = (thisByte & (0xFF >> (8 - rtShiftRemainder))) << (8 - rtShiftRemainder);
+			thisByte = (thisByte >> rtShiftRemainder) | nextByte;
+			retVal->num[i] = ((thisByte & 0xF0) >> 4) | ((thisByte & 0x0F) << 4); // Flip it back...
+			nextByte = thisLeftover;
+		}
+	}
+
+	if( numShifts / 8 > 0 )
+	{
+		// Right shift by numShifts / 8... We may not have shifted far enough
+		memmove( retVal->num, retVal->num + numShifts / 8, ((retVal->numDigits + 1) / 2) - numShifts / 8 );
+		SecureZeroMemory( retVal->num + ((retVal->numDigits + 1) / 2) - numShifts / 8, numShifts / 8 );
+	}
+
+	retVal->numDigits -= numShifts / 4;
+}
