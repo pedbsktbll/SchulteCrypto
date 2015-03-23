@@ -44,6 +44,12 @@ public:
 	BigNum pow_modulo( BigNum& power, BigNum& modulo );
 	BigNum karatsubaMultiply( BigNum& other );
 	BigNum modInverse( BigNum& other );
+	BigNum slidingWindowExp( BigNum& e );
+//	BigNum montgomeryExponent( BigNum& other, BigNum& exponent );
+
+	BigNum montgomeryMultiply( BigNum &B, BigNum &N, ULONGLONG n );
+	BigNum montgomeryReduction( BigNum &N, ULONGLONG n, BigNum *N_inv = NULL );
+	BigNum montSlidingWindowExp(BigNum &e, BigNum& N);
 
 	void left_shift( DWORD numShifts, BigNum* retVal );
 	void right_shift( DWORD numShifts, BigNum* retVal );

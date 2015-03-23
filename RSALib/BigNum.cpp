@@ -923,3 +923,256 @@ void BigNum::right_shift( DWORD numShifts, BigNum* retVal )
 	if( numShifts % 4 != 0 )
 		retVal->validateNumDigits();
 }
+
+// Let M be a positive integer, and R and T integers such that R > m, gcd(m,R) = 1, and 0 <= T < mR.
+// T * R ^ -1 mod m
+// BigNum BigNum::montgomeryExponent( BigNum& other, BigNum& exponent )
+// {
+// 	BigNum x = *this;
+// 	BigNum y = other;
+// 	BigNum m = exponent;
+// 	// We want to calculate x ^ y mod m
+// 
+// 	// Pre-compute R^2 mod m
+// 	BigNum tempQuotient, tempRemainder;
+// 	BigNum R( "1" );
+// 	R.left_shift( m.numDigits * 2, NULL );
+// 	R.classicalDivision( m, tempQuotient, tempRemainder );
+// 	R = tempRemainder;
+// 
+// 	// W[1] = A * R^2 * R^-1 mod N = A * R mod N
+// 	x.classicalDivision( m, tempQuotient, tempRemainder );
+// 	BigNum w = tempRemainder;
+// 
+// 	// Montgomery multiplication: A = A * B * R^-1 mod N  (HAC 14.36)
+// 	BigNum temp = w.karatsubaMultiply( R );
+// 
+// 
+// 	// Montgomery Reduction: A = A * R^-1 * mod N
+// 
+// 
+// 	for( int i = 0; )
+// }
+
+// Montgomery Multiplication: x * y mod m |||| this * B mod N |||| HAC 14.36
+// Where 0 <= x, y < m, R = b ^ n, GCD(m,b) = 1, and m' = -m ^ -1 mod b
+BigNum BigNum::montgomeryMultiply( BigNum &B, BigNum &N, ULONGLONG n)
+{
+// 	// -N ^ -1
+// 	BigNum bnBase( "10" );
+// 	BigNum n_inv = N.modInverse( bnBase );
+// 
+// 	BigNum tempQuotient, tempRemainder, temp;
+// 
+// 	// a_reduc = a * R mod N
+// 	BigNum a_reduc = this->karatsubaMultiply( R );
+// 	a_reduc.classicalDivision( N, tempQuotient, tempRemainder );
+// 	a_reduc = tempRemainder;
+// 
+// 	// b_reduc = b * R mod N
+// 	BigNum b_reduc = B.karatsubaMultiply( R );
+// 	b_reduc.classicalDivision( N, tempQuotient, tempRemainder );
+// 	b_reduc = tempRemainder;
+// 
+// 	// c_reduc = a_reduc * b_reduc * R ^ -1
+// 	BigNum c_reduc = a_reduc.karatsubaMultiply( b_reduc );
+// 	c_reduc = c_reduc.montgomeryReduction( N, R, &n_inv );
+// 
+// 	// c = Reduc( c_reduc )
+// 	return c_reduc.montgomeryReduction( N, R, &n_inv );
+	BigNum b( (ULONGLONG) base );
+	ULONGLONG n_inv = N.modInverse( b ).toULL();
+
+	BigNum A( 0ULL );
+	for( int i = 0; i < n; i++ )
+	{
+		ULONGLONG ui = (GET_NIBBLE( A.num, 0 ) + GET_NIBBLE( this->num, i ) * GET_NIBBLE( B.num, 0 )) * n_inv;
+		BigNum xiy( (ULONGLONG) GET_NIBBLE( this->num, i ) );
+		BigNum uim( ui );
+		xiy = xiy.karatsubaMultiply( B );
+		uim = uim.karatsubaMultiply( N );
+
+		A.classicalAddition( xiy, NULL );
+		A.classicalAddition( uim, NULL );
+		A.right_shift( base, NULL );
+	}
+
+	if( A >= N )
+		A.classicalSubtract( N, NULL );
+	return A;
+}
+
+// Montgomery Reduction: Given T, m -> TR^-1 * mod m (HAC 14.85)
+// GCD(m,b) = 1, R = b ^ n, m' = -m^-1 mod b, T < m * R
+BigNum BigNum::montgomeryReduction( BigNum &N, ULONGLONG n, BigNum *N_inv /*= NULL */ )
+{
+// 	BigNum reduc, tempQuotient, tempRemainder, temp;
+// 
+// 	// IF n_inv passed NULL, then compute it
+// 	if( N_inv == NULL )
+// 	{
+// 		BigNum* inv = new BigNum;
+// 		*inv = N.modInverse( R );
+// 		N_inv = inv;
+// 	}
+// 
+// 	// temp = this % R
+// 	this->classicalDivision( R, tempQuotient, tempRemainder );
+// 
+// 	// temp *= n_inv
+// 	temp = tempRemainder.karatsubaMultiply( *N_inv );
+// 
+// 	// temp % R
+// 	temp.classicalDivision( R, tempQuotient, tempRemainder );
+// 	temp = tempRemainder.karatsubaMultiply( N );
+// 
+// 	// temp += this
+// 	temp.classicalAddition( *this, NULL );
+// 
+// 	// temp / R
+// 	temp.classicalDivision( R, tempQuotient, tempRemainder );
+// 	return tempQuotient;
+
+	BigNum b( (ULONGLONG) base );
+	ULONGLONG n_inv = N.modInverse( b ).toULL();
+
+	BigNum A = *this;
+	for( int i = 0; i < n - 1; i++ )
+	{
+		BigNum ui( (ULONGLONG) (GET_NIBBLE( A.num, i ) * n_inv) % base);
+		BigNum temp = N.karatsubaMultiply( ui );
+		temp.left_shift( i, NULL );
+		A.classicalAddition( temp, NULL );
+	}
+	A.right_shift( n, NULL );
+
+	if( A >= N )
+		A.classicalSubtract( N, NULL );
+	return A;
+}
+
+// Sliding-Window exponentiation: X = A ^ E mod N (HAC 14.85)
+// X = this ^ E mod N
+BigNum BigNum::montSlidingWindowExp( BigNum &e, BigNum& N )
+{
+	const ULONGLONG k = 6;
+	BigNum window[128]; // Our sliding window: 2 << k
+
+	// Pre-computation:
+	window[0] = *this;
+	window[1] = this->karatsubaMultiply( *this );
+
+	ULONGLONG max = (2 << (k - 1));// -1;
+	for( ULONGLONG i = 1; i < max; i++ )
+		window[2 * i] = window[2 * i - 2].karatsubaMultiply( window[1] );
+
+	BigNum unfinished;
+	return unfinished;
+}
+
+BigNum BigNum::slidingWindowExp( BigNum& e )
+{
+	const ULONGLONG k = 6;
+	BigNum window[128]; // Our sliding window: 2 << k
+
+	// Pre-computation:
+	window[0] = *this;
+	window[1] = this->karatsubaMultiply( *this );
+	ULONGLONG max = (2 << (k - 1));// -1;
+	for( ULONGLONG i = 1; i < max; i++ )
+		window[2 * i] = window[2 * i - 2].karatsubaMultiply( window[1] );
+
+	BigNum A( 1ULL );
+	for( ULONGLONG i = e.numDigits - 1; i >= 0; i-- )
+	{
+		if( GET_NIBBLE( e.num, i ) == 0 )
+			A = A.karatsubaMultiply( A );
+		else
+			;
+	}
+
+	BigNum unfinished;
+	return unfinished;
+}
+
+// a * x + b * y = v, where v = gcd(x,y)
+// See Algorithm 14.61 of HAC
+// BigNum BigNum::modInverse( BigNum& other )
+// {
+// 	BigNum g( "1" );
+// 	BigNum x = *this;
+// 	BigNum y = other;
+// 
+// 	while( (GET_NIBBLE( x.num, 0 ) % 2 == 0) && GET_NIBBLE( y.num, 0 ) % 2 == 0 )
+// 	{
+// 		x.right_shift( 1, NULL );
+// 		y.right_shift( 1, NULL );
+// 		g.left_shift( 1, NULL );
+// 	}
+// 
+// 	BigNum u = x;
+// 	BigNum v = y;
+// 	BigNum A( "1" );
+// 	BigNum B( "0" );
+// 	BigNum C( "0" );
+// 	BigNum D( "1" );
+// 
+// STEP_4:
+// 	while( GET_NIBBLE( u.num, 0 ) % 2 == 0 )
+// 	{
+// 		u.right_shift( 1, NULL );
+// 		if( GET_NIBBLE( A.num, 0 ) % 2 == 0 && GET_NIBBLE( B.num, 0 ) % 2 == 0 )
+// 		{
+// 			A.right_shift( 1, NULL );
+// 			B.right_shift( 1, NULL );
+// 		}
+// 		else
+// 		{
+// 			A.classicalAddition( y, NULL );
+// 			A.right_shift( 1, NULL );
+// 			B.classicalSubtract( x, NULL );
+// 			B.right_shift( 1, NULL );
+// 
+// 		}
+// 	}
+// 
+// 	while( GET_NIBBLE( v.num, 0 ) % 2 == 0 )
+// 	{
+// 		v.right_shift( 1, NULL );
+// 		if( GET_NIBBLE( C.num, 0 ) % 2 == 0 && GET_NIBBLE( D.num, 0 ) % 2 == 0 )
+// 		{
+// 			C.right_shift( 1, NULL );
+// 			D.right_shift( 1, NULL );
+// 		}
+// 		else
+// 		{
+// 			C.classicalAddition( y, NULL );
+// 			C.right_shift( 1, NULL );
+// 			D.classicalSubtract( x, NULL );
+// 			D.right_shift( 1, NULL );
+// 
+// 		}
+// 	}
+// 
+// 	if( u >= v )
+// 	{
+// 		u.classicalSubtract( v, NULL );
+// 		A.classicalSubtract( C, NULL );
+// 		B.classicalSubtract( D, NULL );
+// 	}
+// 	else
+// 	{
+// 		v.classicalSubtract( u, NULL );
+// 		C.classicalSubtract( A, NULL );
+// 		D.classicalSubtract( B, NULL );
+// 	}
+// 
+// 	if( u.numDigits == 0 )
+// 	{
+// 		BigNum a = C;
+// 		BigNum b = D;
+// 		BigNum retV = v.karatsubaMultiply( g );
+// 	}
+// 	else
+// 		goto STEP_4;
+// }
