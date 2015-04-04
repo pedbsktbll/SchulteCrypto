@@ -958,29 +958,6 @@ void BigNum::right_shift( DWORD numShifts, BigNum* retVal )
 // Where 0 <= x, y < m, R = b ^ n, GCD(m,b) = 1, and m' = -m ^ -1 mod b
 BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m)
 {
-// 	// -N ^ -1
-// 	BigNum bnBase( "10" );
-// 	BigNum n_inv = N.modInverse( bnBase );
-// 
-// 	BigNum tempQuotient, tempRemainder, temp;
-// 
-// 	// a_reduc = a * R mod N
-// 	BigNum a_reduc = this->karatsubaMultiply( R );
-// 	a_reduc.classicalDivision( N, tempQuotient, tempRemainder );
-// 	a_reduc = tempRemainder;
-// 
-// 	// b_reduc = b * R mod N
-// 	BigNum b_reduc = B.karatsubaMultiply( R );
-// 	b_reduc.classicalDivision( N, tempQuotient, tempRemainder );
-// 	b_reduc = tempRemainder;
-// 
-// 	// c_reduc = a_reduc * b_reduc * R ^ -1
-// 	BigNum c_reduc = a_reduc.karatsubaMultiply( b_reduc );
-// 	c_reduc = c_reduc.montgomeryReduction( N, R, &n_inv );
-// 
-// 	// c = Reduc( c_reduc )
-// 	return c_reduc.montgomeryReduction( N, R, &n_inv );
-
 	ULONGLONG n = m.numDigits;
 	BigNum b( (ULONGLONG) base );
 	ULONGLONG m_inv = m.modInverse( b ).toULL();
@@ -1006,50 +983,24 @@ BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m)
 
 // Montgomery Reduction: Given T, m -> TR^-1 * mod m (HAC 14.85)
 // GCD(m,b) = 1, R = b ^ n, m' = -m^-1 mod b, T < m * R
-BigNum BigNum::montgomeryReduction( BigNum &m, ULONGLONG n, BigNum *_m_inv /*= NULL */ )
+BigNum BigNum::montgomeryReduction( BigNum &m, ULONGLONG n, ULONGLONG *m_invPtr /*= NULL */ )
 {
-// 	BigNum reduc, tempQuotient, tempRemainder, temp;
-// 
-// 	// IF n_inv passed NULL, then compute it
-// 	if( N_inv == NULL )
-// 	{
-// 		BigNum* inv = new BigNum;
-// 		*inv = N.modInverse( R );
-// 		N_inv = inv;
-// 	}
-// 
-// 	// temp = this % R
-// 	this->classicalDivision( R, tempQuotient, tempRemainder );
-// 
-// 	// temp *= n_inv
-// 	temp = tempRemainder.karatsubaMultiply( *N_inv );
-// 
-// 	// temp % R
-// 	temp.classicalDivision( R, tempQuotient, tempRemainder );
-// 	temp = tempRemainder.karatsubaMultiply( N );
-// 
-// 	// temp += this
-// 	temp.classicalAddition( *this, NULL );
-// 
-// 	// temp / R
-// 	temp.classicalDivision( R, tempQuotient, tempRemainder );
-// 	return tempQuotient;
-
 	BigNum b( (ULONGLONG) base );
-	ULONGLONG m_inv = m.modInverse( b ).toULL();
+	ULONGLONG m_inv;
+	if( m_invPtr != NULL )
+		m_inv = *m_invPtr;
+	else
+		m_inv = m.modInverse( b ).toULL();
 
 	BigNum A = *this;
 	for( int i = 0; i < n; i++ )
 	{
-// 		ULONGLONG aaaaa = GET_NIBBLE( A.num, i );
-// 		aaaaa *= n_inv;
-// 		aaaaa %= base;
 		BigNum ui( (ULONGLONG) ((GET_NIBBLE( A.num, i ) * m_inv) % base));
 		BigNum temp = m.karatsubaMultiply( ui );
 		temp.left_shift( i * 4, NULL ); // * b^i
 		A.classicalAddition( temp, NULL );
 	}
-	A.right_shift( n * 4, NULL ); // / b^i
+	A.right_shift( n * 4ULL, NULL ); // / b^i
 
 	if( A >= m )
 		A.classicalSubtract( m, NULL );
@@ -1098,6 +1049,45 @@ BigNum BigNum::slidingWindowExp( BigNum& e )
 
 	BigNum unfinished;
 	return unfinished;
+}
+
+BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
+{
+	BigNum R( 1ULL ), A, R2, R2Modm, quotient;
+	R.left_shift( m.numDigits * 4, NULL );
+	R.classicalDivision( m, quotient, A );
+	R.left_shift( 1, &R2 );
+	R2.classicalDivision( m, quotient, R2Modm );
+
+	BigNum xR2 = this->karatsubaMultiply( R2Modm );
+	BigNum x_mont = xR2.montgomeryReduction( m, m.numDigits );
+
+	// Let's get the total number of binary digits in e, stopping at the last "1"
+	ULONGLONG t = (e.numDigits - 1) * 4;
+	BYTE et = GET_NIBBLE( e.num, e.numDigits - 1 );
+	if( et & 0x8 )
+		t += 4;
+	else if( et & 0x4 )
+		t += 3;
+	else if( et & 0x2 )
+		t += 2;
+	else
+		t += 1;
+
+	for( LONGLONG i = t; i >= 0; i-- )
+	{
+//		A = A.karatsubaMultiply( A );
+//		A = A.montgomeryReduction( m, m.numDigits );
+		A = A.montgomeryMultiply( A, m );
+		if( GET_NIBBLE( e.num, i / 4ULL ) & (1 << (i % 4ULL)) )
+		{
+//			A = A.karatsubaMultiply( x_mont );
+//			A = A.montgomeryReduction( m, m.numDigits );
+			A = A.montgomeryMultiply( x_mont, m );
+		}
+	}
+	A = A.montgomeryReduction( m, m.numDigits );
+	return A;
 }
 
 // a * x + b * y = v, where v = gcd(x,y)

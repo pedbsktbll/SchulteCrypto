@@ -47,8 +47,9 @@ public:
 	BigNum slidingWindowExp( BigNum& e );
 //	BigNum montgomeryExponent( BigNum& other, BigNum& exponent );
 
-	BigNum montgomeryMultiply( BigNum &B, BigNum &N );
-	BigNum montgomeryReduction( BigNum &N, ULONGLONG n, BigNum *N_inv = NULL );
+	BigNum montgomeryReduction( BigNum &m, ULONGLONG n, ULONGLONG *m_invPtr = NULL );
+	BigNum montgomeryMultiply( BigNum &y, BigNum &m );
+	BigNum montgomeryExponent( BigNum &e, BigNum &m );
 	BigNum montSlidingWindowExp(BigNum &e, BigNum& N);
 
 	void left_shift( DWORD numShifts, BigNum* retVal );
