@@ -924,36 +924,6 @@ void BigNum::right_shift( DWORD numShifts, BigNum* retVal )
 		retVal->validateNumDigits();
 }
 
-// Let M be a positive integer, and R and T integers such that R > m, gcd(m,R) = 1, and 0 <= T < mR.
-// T * R ^ -1 mod m
-// BigNum BigNum::montgomeryExponent( BigNum& other, BigNum& exponent )
-// {
-// 	BigNum x = *this;
-// 	BigNum y = other;
-// 	BigNum m = exponent;
-// 	// We want to calculate x ^ y mod m
-// 
-// 	// Pre-compute R^2 mod m
-// 	BigNum tempQuotient, tempRemainder;
-// 	BigNum R( "1" );
-// 	R.left_shift( m.numDigits * 2, NULL );
-// 	R.classicalDivision( m, tempQuotient, tempRemainder );
-// 	R = tempRemainder;
-// 
-// 	// W[1] = A * R^2 * R^-1 mod N = A * R mod N
-// 	x.classicalDivision( m, tempQuotient, tempRemainder );
-// 	BigNum w = tempRemainder;
-// 
-// 	// Montgomery multiplication: A = A * B * R^-1 mod N  (HAC 14.36)
-// 	BigNum temp = w.karatsubaMultiply( R );
-// 
-// 
-// 	// Montgomery Reduction: A = A * R^-1 * mod N
-// 
-// 
-// 	for( int i = 0; )
-// }
-
 // Montgomery Multiplication: x * y mod m |||| HAC 14.36
 // Where 0 <= x, y < m, R = b ^ n, GCD(m,b) = 1, and m' = -m ^ -1 mod b
 BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m)
@@ -1053,6 +1023,7 @@ BigNum BigNum::slidingWindowExp( BigNum& e )
 
 BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
 {
+	// Pre-computer R^2 mod m and R mod m
 	BigNum R( 1ULL ), A, R2, R2Modm, quotient;
 	R.left_shift( m.numDigits * 4, NULL );
 	R.classicalDivision( m, quotient, A );
