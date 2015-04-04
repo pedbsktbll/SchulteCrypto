@@ -65,13 +65,19 @@ int wmain( int argc, wchar_t* argv[] )
 // 	a.left_shift( 9, &f );
 // 	a.left_shift( 13, &f );
 
-// 	// Montgomery multiplication ?
-// 	BigNum a( "2B" ); // 43
-// 	BigNum b( "38" ); // 56
-// 	BigNum N( "61" ); // 97
-// //	BigNum R( "64" ); // 100
-// 	BigNum R( "80" ); // 128
-// 	BigNum result = a.montgomeryMultiply( b, N, R );
+	// Montgomery reduction
+	BigNum m( "61" );//72639ULL );
+//	BigNum b( 16ULL );
+//	BigNum R( (ULONGLONG) (2 << 5) );
+	ULONGLONG n = 2;//5;
+	BigNum T( "968" );//7118368ULL );
+	BigNum mr = T.montgomeryReduction( m, n );
+
+	// Montgomery multiplication ?
+	BigNum x( "2B" ); // 43
+	BigNum y( "38" ); // 56
+//	BigNum m( "61" ); // 97
+	BigNum result = x.montgomeryMultiply( y, m );
 
 //	BigNum n( "534cebf2379da8eb9456a88441" );
 //	char test[] = "2489108B0B6AF86BED9E44C2336442D5E227DBA55EF8E26A7E437194119077F003BC9C027852BB3126C99C16D5F1057BC8361DCB26A5B2DB4229DB3DE5BD979B2E597D1916D7BBC92746FC07595C76B44B39A476A65C86F086DC9283CA6D1EEFC14915982F9C4CED5F62A9FF3BE24218A99357B5B65C3B10AEB367E911EB9E21";

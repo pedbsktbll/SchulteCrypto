@@ -954,9 +954,9 @@ void BigNum::right_shift( DWORD numShifts, BigNum* retVal )
 // 	for( int i = 0; )
 // }
 
-// Montgomery Multiplication: x * y mod m |||| this * B mod N |||| HAC 14.36
+// Montgomery Multiplication: x * y mod m |||| HAC 14.36
 // Where 0 <= x, y < m, R = b ^ n, GCD(m,b) = 1, and m' = -m ^ -1 mod b
-BigNum BigNum::montgomeryMultiply( BigNum &B, BigNum &N, ULONGLONG n)
+BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m)
 {
 // 	// -N ^ -1
 // 	BigNum bnBase( "10" );
@@ -980,31 +980,33 @@ BigNum BigNum::montgomeryMultiply( BigNum &B, BigNum &N, ULONGLONG n)
 // 
 // 	// c = Reduc( c_reduc )
 // 	return c_reduc.montgomeryReduction( N, R, &n_inv );
+
+	ULONGLONG n = m.numDigits;
 	BigNum b( (ULONGLONG) base );
-	ULONGLONG n_inv = N.modInverse( b ).toULL();
+	ULONGLONG m_inv = m.modInverse( b ).toULL();
 
 	BigNum A( 0ULL );
 	for( int i = 0; i < n; i++ )
 	{
-		ULONGLONG ui = (GET_NIBBLE( A.num, 0 ) + GET_NIBBLE( this->num, i ) * GET_NIBBLE( B.num, 0 )) * n_inv;
+		ULONGLONG ui = ((GET_NIBBLE( A.num, 0 ) + GET_NIBBLE( this->num, i ) * GET_NIBBLE( y.num, 0 )) * m_inv) % base;
 		BigNum xiy( (ULONGLONG) GET_NIBBLE( this->num, i ) );
 		BigNum uim( ui );
-		xiy = xiy.karatsubaMultiply( B );
-		uim = uim.karatsubaMultiply( N );
+		xiy = xiy.karatsubaMultiply( y );
+		uim = uim.karatsubaMultiply( m );
 
 		A.classicalAddition( xiy, NULL );
 		A.classicalAddition( uim, NULL );
-		A.right_shift( base, NULL );
+		A.right_shift( 4, NULL ); //square root of base (16) = 4
 	}
 
-	if( A >= N )
-		A.classicalSubtract( N, NULL );
+	if( A >= m )
+		A.classicalSubtract( m, NULL );
 	return A;
 }
 
 // Montgomery Reduction: Given T, m -> TR^-1 * mod m (HAC 14.85)
 // GCD(m,b) = 1, R = b ^ n, m' = -m^-1 mod b, T < m * R
-BigNum BigNum::montgomeryReduction( BigNum &N, ULONGLONG n, BigNum *N_inv /*= NULL */ )
+BigNum BigNum::montgomeryReduction( BigNum &m, ULONGLONG n, BigNum *_m_inv /*= NULL */ )
 {
 // 	BigNum reduc, tempQuotient, tempRemainder, temp;
 // 
@@ -1034,20 +1036,23 @@ BigNum BigNum::montgomeryReduction( BigNum &N, ULONGLONG n, BigNum *N_inv /*= NU
 // 	return tempQuotient;
 
 	BigNum b( (ULONGLONG) base );
-	ULONGLONG n_inv = N.modInverse( b ).toULL();
+	ULONGLONG m_inv = m.modInverse( b ).toULL();
 
 	BigNum A = *this;
-	for( int i = 0; i < n - 1; i++ )
+	for( int i = 0; i < n; i++ )
 	{
-		BigNum ui( (ULONGLONG) (GET_NIBBLE( A.num, i ) * n_inv) % base);
-		BigNum temp = N.karatsubaMultiply( ui );
-		temp.left_shift( i, NULL );
+// 		ULONGLONG aaaaa = GET_NIBBLE( A.num, i );
+// 		aaaaa *= n_inv;
+// 		aaaaa %= base;
+		BigNum ui( (ULONGLONG) ((GET_NIBBLE( A.num, i ) * m_inv) % base));
+		BigNum temp = m.karatsubaMultiply( ui );
+		temp.left_shift( i * 4, NULL ); // * b^i
 		A.classicalAddition( temp, NULL );
 	}
-	A.right_shift( n, NULL );
+	A.right_shift( n * 4, NULL ); // / b^i
 
-	if( A >= N )
-		A.classicalSubtract( N, NULL );
+	if( A >= m )
+		A.classicalSubtract( m, NULL );
 	return A;
 }
 

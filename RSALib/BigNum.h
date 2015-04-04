@@ -47,7 +47,7 @@ public:
 	BigNum slidingWindowExp( BigNum& e );
 //	BigNum montgomeryExponent( BigNum& other, BigNum& exponent );
 
-	BigNum montgomeryMultiply( BigNum &B, BigNum &N, ULONGLONG n );
+	BigNum montgomeryMultiply( BigNum &B, BigNum &N );
 	BigNum montgomeryReduction( BigNum &N, ULONGLONG n, BigNum *N_inv = NULL );
 	BigNum montSlidingWindowExp(BigNum &e, BigNum& N);
 
