@@ -1024,41 +1024,48 @@ BigNum BigNum::slidingWindowExp( BigNum& e )
 BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
 {
 	// Pre-computer R^2 mod m and R mod m
-	BigNum R( 1ULL ), A, R2, R2Modm, quotient;
-	R.left_shift( m.numDigits /** 4*/, NULL );
-	R.classicalDivision( m, quotient, A );
-	R.left_shift( 1, &R2 );
-	R2.classicalDivision( m, quotient, R2Modm );
+	BigNum R( /*1ULL*/ (ULONGLONG) base ), A, R2, R2Modm, quotient;
+//	R.left_shift( m.numDigits * 4, NULL ); // R = b ^ l, where l = number of digits of m
+//	R.left_shift( 1 * 4, &R2 );
+	R = R.classicalExponent( BigNum((ULONGLONG) m.numDigits) );
+	R.classicalDivision( m, quotient, A ); // A = R mod m
 
-//	BigNum xR2 = this->karatsubaMultiply( R2Modm );
-//	BigNum x_mont = xR2.montgomeryReduction( m, m.numDigits );
-	BigNum x_mont = this->montgomeryMultiply( R2, m );
+	R2 = R.karatsubaMultiply( R );
+	R2.classicalDivision( m, quotient, R2Modm ); // R2Modm = R^2 mod m
+
+// 	// W[1] = X * R^2 * R^-1 mod N = X * R mod N
+// 	if( *this > m )
+// 		this->classicalDivision(m, quotient, )
+
+
+	// A = R^2 * R^-1 mod m = R mod m
+//	BigNum A = R2Modm.montgomeryReduction( m, m.numDigits );
+
+//	BigNum A = R.montgomeryReduction( m, m.numDigits ); // A = R mod m
+//	R.montgomeryMultiply( R, m ); // R = R^2 mod m
+	
+	BigNum x_mont = this->montgomeryMultiply( R2Modm, m ); // x~ = x * R ^2 mod m
 
 	// Let's get the total number of binary digits in e, stopping at the last "1"
-	ULONGLONG t = (e.numDigits - 1) * 4;
+	ULONGLONG t = (e.numDigits - 1) * 4;// -1;
 	BYTE et = GET_NIBBLE( e.num, e.numDigits - 1 );
 	if( et & 0x8 )
-		t += 4;
+		t += 3;//4;
 	else if( et & 0x4 )
-		t += 3;
+		t += 2;//3;
 	else if( et & 0x2 )
-		t += 2;
-	else
-		t += 1;
+		t += 1;//2;
+// 	else
+// 		t += 1;
 
 	for( LONGLONG i = t; i >= 0; i-- )
 	{
-//		A = A.karatsubaMultiply( A );
-//		A = A.montgomeryReduction( m, m.numDigits );
 		A = A.montgomeryMultiply( A, m );
 		if( GET_NIBBLE( e.num, i / 4ULL ) & (1 << (i % 4ULL)) )
-		{
-//			A = A.karatsubaMultiply( x_mont );
-//			A = A.montgomeryReduction( m, m.numDigits );
 			A = A.montgomeryMultiply( x_mont, m );
-		}
 	}
-	A = A.montgomeryReduction( m, m.numDigits );
+//	A = A.montgomeryReduction( m, m.numDigits );
+	A = A.montgomeryMultiply( BigNum( 1ULL ), m );
 	return A;
 }
 
