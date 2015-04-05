@@ -65,19 +65,24 @@ int wmain( int argc, wchar_t* argv[] )
 // 	a.left_shift( 9, &f );
 // 	a.left_shift( 13, &f );
 
+	BigNum mm( "17" );
+	BigNum base( "10" );
+	ULONGLONG m_inv = mm.modInverse_bruteForce();
+
 	// Montgomery reduction
-	BigNum m( "61" );//72639ULL );
+	BigNum m( "11BBF" );
 //	BigNum b( 16ULL );
 //	BigNum R( (ULONGLONG) (2 << 5) );
-	ULONGLONG n = 2;//5;
-	BigNum T( "968" );//7118368ULL );
-	BigNum mr = T.montgomeryReduction( m, n );
+	BigNum T( "6C9E20" );
+	BigNum mr = T.montgomeryReduction( m );
+	mr = mr.montgomeryReduction( m );
 
 	// Montgomery multiplication ?
-	BigNum x( "2B" ); // 43
-	BigNum y( "38" ); // 56
-//	BigNum m( "61" ); // 97
-	BigNum result = x.montgomeryMultiply( y, m );
+	BigNum x( "16A0");//"5" );// "2B" ); // 43
+	BigNum y( "4CD" );// "7" );//"38" ); // 56
+	BigNum m3( "11BBF" );// "17" );//"61" ); // 97
+	BigNum result = x.montgomeryMultiply( y, m3 );
+	result = result.montgomeryReduction( m3);
 
 	BigNum A( "5" );
 	BigNum e( "9" );

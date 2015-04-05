@@ -117,8 +117,7 @@ int DriverRSA()
 	}
 	puts( "Decryption succeeded!" );
 
-
-	BigNum test = priv.prime2.modInverse( priv.prime1 );
+	BigNum test = priv.prime2.modInverse_fermat( priv.prime1 );
 	if( test == priv.coefficient )
 		puts( "They're alike!" );
 

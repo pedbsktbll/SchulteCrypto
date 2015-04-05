@@ -854,7 +854,10 @@ ULONGLONG BigNum::toULL()
 	return retVal;
 }
 
-BigNum BigNum::modInverse( BigNum& other )
+// Fermat's Little Theorem: https://comeoncodeon.wordpress.com/2011/10/09/modular-multiplicative-inverse/
+// Fermat’s little theorem states that if m is a prime and a is an integer co-prime to m, then a^P -1 will be evenly divisible by m.
+// That is, a^(m-1) = 1 (mod m). or a^(m-2) = a^-1 (mod m).
+BigNum BigNum::modInverse_fermat( BigNum& other )
 {
 	BigNum two( "2" );
 	return pow_modulo(other - two, other);
@@ -929,8 +932,8 @@ void BigNum::right_shift( DWORD numShifts, BigNum* retVal )
 BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m)
 {
 	ULONGLONG n = m.numDigits;
-	BigNum b( (ULONGLONG) base );
-	ULONGLONG m_inv = m.modInverse( b ).toULL();
+//	BigNum b( (ULONGLONG) base );
+	ULONGLONG m_inv = m.modInverse_bruteForce();//m.modInverse_fermat( b ).toULL();
 
 	BigNum A( 0ULL );
 	for( int i = 0; i < n; i++ )
@@ -953,14 +956,15 @@ BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m)
 
 // Montgomery Reduction: Given T, m -> TR^-1 * mod m (HAC 14.85)
 // GCD(m,b) = 1, R = b ^ n, m' = -m^-1 mod b, T < m * R
-BigNum BigNum::montgomeryReduction( BigNum &m, ULONGLONG n, ULONGLONG *m_invPtr /*= NULL */ )
+BigNum BigNum::montgomeryReduction( BigNum &m, ULONGLONG *m_invPtr /*= NULL */ )
 {
 	BigNum b( (ULONGLONG) base );
 	ULONGLONG m_inv;
+	ULONGLONG n = m.numDigits;
 	if( m_invPtr != NULL )
 		m_inv = *m_invPtr;
 	else
-		m_inv = m.modInverse( b ).toULL();
+		m_inv = m.modInverse_bruteForce();// m.modInverse_fermat( b ).toULL();
 
 	BigNum A = *this;
 	for( int i = 0; i < n; i++ )
@@ -1027,7 +1031,7 @@ BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
 	BigNum R( /*1ULL*/ (ULONGLONG) base ), A, R2, R2Modm, quotient;
 //	R.left_shift( m.numDigits * 4, NULL ); // R = b ^ l, where l = number of digits of m
 //	R.left_shift( 1 * 4, &R2 );
-	R = R.classicalExponent( BigNum((ULONGLONG) m.numDigits) );
+	R = R.classicalExponent( BigNum((ULONGLONG) m.numDigits) ); // R = b^l
 	R.classicalDivision( m, quotient, A ); // A = R mod m
 
 	R2 = R.karatsubaMultiply( R );
@@ -1067,6 +1071,17 @@ BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
 //	A = A.montgomeryReduction( m, m.numDigits );
 	A = A.montgomeryMultiply( BigNum( 1ULL ), m );
 	return A;
+}
+
+ULONGLONG BigNum::modInverse_bruteForce()
+{
+	BigNum quotient, remainder, b( (ULONGLONG) base );
+	this->classicalDivision( b, quotient, remainder );
+	ULONGLONG a = remainder.toULL();
+
+	for( int i = 1; i < base; i++ )
+		if( (a * i) % base == 1 )
+			return i;
 }
 
 // a * x + b * y = v, where v = gcd(x,y)

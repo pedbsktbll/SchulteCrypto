@@ -41,13 +41,15 @@ public:
 
 //	void appliedCryptoDivision(BigNum& other, BigNum& quotient, BigNum& remainder );
 
+	BigNum modInverse_fermat( BigNum& other );
+	ULONGLONG modInverse_bruteForce();
+
 	BigNum pow_modulo( BigNum& power, BigNum& modulo );
 	BigNum karatsubaMultiply( BigNum& other );
-	BigNum modInverse( BigNum& other );
 	BigNum slidingWindowExp( BigNum& e );
 //	BigNum montgomeryExponent( BigNum& other, BigNum& exponent );
 
-	BigNum montgomeryReduction( BigNum &m, ULONGLONG n, ULONGLONG *m_invPtr = NULL );
+	BigNum montgomeryReduction( BigNum &m, ULONGLONG *m_invPtr = NULL );
 	BigNum montgomeryMultiply( BigNum &y, BigNum &m );
 	BigNum montgomeryExponent( BigNum &e, BigNum &m );
 	BigNum montSlidingWindowExp(BigNum &e, BigNum& N);
