@@ -711,8 +711,8 @@ BigNum BigNum::karatsubaMultiply( BigNum& other )
 	if( this->numDigits == 0 || other.numDigits == 0 )
 		return (ULONGLONG) 0;
 
-// 	if( numDigits <= 7 && other.numDigits <= 7 )
-// 		return this->toULL() * other.toULL();
+	if( numDigits <= 7 && other.numDigits <= 7 )
+		return this->toULL() * other.toULL();
 
 	if( this->numDigits <= 2 || other.numDigits <= 2 )
 	{
@@ -929,11 +929,11 @@ void BigNum::right_shift( DWORD numShifts, BigNum* retVal )
 
 // Montgomery Multiplication: x * y mod m |||| HAC 14.36
 // Where 0 <= x, y < m, R = b ^ n, GCD(m,b) = 1, and m' = -m ^ -1 mod b
-BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m)
+BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m, ULONGLONG* pm_inv /*= NULL*/ )
 {
 	ULONGLONG n = m.numDigits;
 //	BigNum b( (ULONGLONG) base );
-	ULONGLONG m_inv = m.modInverse_bruteForce();//m.modInverse_fermat( b ).toULL();
+	ULONGLONG m_inv = (pm_inv == NULL ? m.modInverse_bruteForce() : *pm_inv);
 
 	BigNum A( 0ULL );
 	for( int i = 0; i < n; i++ )
@@ -1048,8 +1048,17 @@ BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
 
 //	BigNum A = R.montgomeryReduction( m, m.numDigits ); // A = R mod m
 //	R.montgomeryMultiply( R, m ); // R = R^2 mod m
+
+	// Get the negative modular inverse of m, since we'll be using it throughout montgomery operations:
+	ULONGLONG m_inv = m.modInverse_bruteForce();
 	
-	BigNum x_mont = this->montgomeryMultiply( R2Modm, m ); // x~ = x * R ^2 mod m
+	// Ensure that x < m, which are the preconditions for montgomeryExponentiation
+	BigNum x_mont;
+	if( *this >= m )
+		this->classicalDivision( m, quotient, x_mont );
+	else
+		x_mont = *this;
+	x_mont = x_mont.montgomeryMultiply( R2Modm, m, &m_inv ); // x~ = x * R ^2 mod m
 
 	// Let's get the total number of binary digits in e, stopping at the last "1"
 	ULONGLONG t = (e.numDigits - 1) * 4;// -1;
@@ -1065,12 +1074,12 @@ BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
 
 	for( LONGLONG i = t; i >= 0; i-- )
 	{
-		A = A.montgomeryMultiply( A, m );
+		A = A.montgomeryMultiply( A, m, &m_inv );
 		if( GET_NIBBLE( e.num, i / 4ULL ) & (1 << (i % 4ULL)) )
-			A = A.montgomeryMultiply( x_mont, m );
+			A = A.montgomeryMultiply( x_mont, m, &m_inv );
 	}
 //	A = A.montgomeryReduction( m, m.numDigits );
-	A = A.montgomeryMultiply( BigNum( 1ULL ), m );
+	A = A.montgomeryMultiply( BigNum( 1ULL ), m, &m_inv );
 	return A;
 }
 
@@ -1087,6 +1096,13 @@ ULONGLONG BigNum::modInverse_bruteForce( bool negative /*= true*/ )
 
 	return negative ? base - retVal : retVal;
 }
+
+// IF x > m, then we have a proble... we need to cut x until it's less than m, then do mont exp
+// Result = x ^ e mod m
+// BigNum BigNum::montDivideAndConquerExponent( BigNum& e, BigNum &m )
+// {
+// 
+// }
 
 // a * x + b * y = v, where v = gcd(x,y)
 // See Algorithm 14.61 of HAC

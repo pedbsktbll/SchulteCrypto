@@ -50,8 +50,10 @@ public:
 //	BigNum montgomeryExponent( BigNum& other, BigNum& exponent );
 
 	BigNum montgomeryReduction( BigNum &m, ULONGLONG *m_invPtr = NULL );
-	BigNum montgomeryMultiply( BigNum &y, BigNum &m );
+	BigNum montgomeryMultiply( BigNum &y, BigNum &m, ULONGLONG* pm_inv = NULL );
 	BigNum montgomeryExponent( BigNum &e, BigNum &m );
+
+//	BigNum montDivideAndConquerExponent( BigNum& e, BigNum &m );
 	BigNum montSlidingWindowExp(BigNum &e, BigNum& N);
 
 	void left_shift( DWORD numShifts, BigNum* retVal );
