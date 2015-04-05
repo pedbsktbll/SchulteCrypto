@@ -1025,13 +1025,14 @@ BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
 {
 	// Pre-computer R^2 mod m and R mod m
 	BigNum R( 1ULL ), A, R2, R2Modm, quotient;
-	R.left_shift( m.numDigits * 4, NULL );
+	R.left_shift( m.numDigits /** 4*/, NULL );
 	R.classicalDivision( m, quotient, A );
 	R.left_shift( 1, &R2 );
 	R2.classicalDivision( m, quotient, R2Modm );
 
-	BigNum xR2 = this->karatsubaMultiply( R2Modm );
-	BigNum x_mont = xR2.montgomeryReduction( m, m.numDigits );
+//	BigNum xR2 = this->karatsubaMultiply( R2Modm );
+//	BigNum x_mont = xR2.montgomeryReduction( m, m.numDigits );
+	BigNum x_mont = this->montgomeryMultiply( R2, m );
 
 	// Let's get the total number of binary digits in e, stopping at the last "1"
 	ULONGLONG t = (e.numDigits - 1) * 4;
