@@ -69,7 +69,8 @@ BigNum RSAPublicKey::cipher( BigNum& plainText )
 //	BigNum a = plainText ^ publicExponent;
 //	BigNum b = a % modulus;
 //	return b;
-	return plainText.pow_modulo( publicExponent, modulus );
+//	return plainText.pow_modulo( publicExponent, modulus );
+	return plainText.montgomeryExponent( publicExponent, modulus );
 }
 
 bool RSAPublicKey::cipher( BYTE* buffer, DWORD& bufferSize, DWORD& commitSize )
@@ -91,7 +92,8 @@ bool RSAPublicKey::cipher( BYTE* buffer, DWORD& bufferSize, DWORD& commitSize )
 	BigNum plainText;
 	plainText.initialize( k, buffer );
 //	plainText = (plainText ^ publicExponent) % modulus;
-	plainText.pow_modulo( publicExponent, modulus );
+//	plainText.pow_modulo( publicExponent, modulus );
+	plainText.montgomeryExponent( publicExponent, modulus );
 
 	// PlainText is now RSA-encrypted. Now let's convert back to an octet-string:
 	return true;

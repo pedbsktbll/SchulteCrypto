@@ -159,8 +159,10 @@ BigNum RSAPrivateKey::decipher( BigNum& cipherText )
 	// m = m2 + h * q;
 	BigNum one( "1" );
 
-	BigNum m1 = cipherText.pow_modulo(exponent1, prime1);
-	BigNum m2 = cipherText.pow_modulo(exponent2, prime2);
+//	BigNum m1 = cipherText.pow_modulo(exponent1, prime1);
+//	BigNum m2 = cipherText.pow_modulo(exponent2, prime2);
+	BigNum m1 = cipherText.montgomeryExponent( exponent1, prime1 );
+	BigNum m2 = cipherText.montgomeryExponent( exponent2, prime2 );
 
 	BigNum h = m2 < m1 ? (coefficient * (m1 - m2)) % prime1 : coefficient * ((m1 + (((prime2 / prime1) + one) * prime1)) - m2) % prime1;
 	BigNum m = m2 + h * prime2;
