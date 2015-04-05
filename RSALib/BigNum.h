@@ -42,7 +42,7 @@ public:
 //	void appliedCryptoDivision(BigNum& other, BigNum& quotient, BigNum& remainder );
 
 	BigNum modInverse_fermat( BigNum& other );
-	ULONGLONG modInverse_bruteForce();
+	ULONGLONG modInverse_bruteForce(bool negative = true);
 
 	BigNum pow_modulo( BigNum& power, BigNum& modulo );
 	BigNum karatsubaMultiply( BigNum& other );

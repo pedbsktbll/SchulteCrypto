@@ -711,8 +711,8 @@ BigNum BigNum::karatsubaMultiply( BigNum& other )
 	if( this->numDigits == 0 || other.numDigits == 0 )
 		return (ULONGLONG) 0;
 
-	if( numDigits <= 7 && other.numDigits <= 7 )
-		return this->toULL() * other.toULL();
+// 	if( numDigits <= 7 && other.numDigits <= 7 )
+// 		return this->toULL() * other.toULL();
 
 	if( this->numDigits <= 2 || other.numDigits <= 2 )
 	{
@@ -870,7 +870,7 @@ void BigNum::left_shift( DWORD numShifts, BigNum* retVal )
 	else
 		*retVal = *this;
 
-	DWORD newSize = (retVal->numDigits * 4 + numShifts + 7) / 8; 
+	DWORD newSize = (retVal->numDigits * 4 + numShifts + 8) / 8; 
 	if( retVal->allocatedBytes < newSize )
 		retVal->increaseCapacity( newSize );
 
@@ -938,8 +938,8 @@ BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m)
 	BigNum A( 0ULL );
 	for( int i = 0; i < n; i++ )
 	{
-		ULONGLONG ui = ((GET_NIBBLE( A.num, 0 ) + GET_NIBBLE( this->num, i ) * GET_NIBBLE( y.num, 0 )) * m_inv) % base;
-		BigNum xiy( (ULONGLONG) GET_NIBBLE( this->num, i ) );
+		ULONGLONG ui = ((GET_NIBBLE( A.num, 0 ) + (this->numDigits > i ? GET_NIBBLE( this->num, i ) : 0) * GET_NIBBLE( y.num, 0 )) * m_inv) % base;
+		BigNum xiy( (ULONGLONG) (this->numDigits > i ? GET_NIBBLE( this->num, i ) : 0) );
 		BigNum uim( ui );
 		xiy = xiy.karatsubaMultiply( y );
 		uim = uim.karatsubaMultiply( m );
@@ -969,7 +969,7 @@ BigNum BigNum::montgomeryReduction( BigNum &m, ULONGLONG *m_invPtr /*= NULL */ )
 	BigNum A = *this;
 	for( int i = 0; i < n; i++ )
 	{
-		BigNum ui( (ULONGLONG) ((GET_NIBBLE( A.num, i ) * m_inv) % base));
+		BigNum ui( (ULONGLONG) (((A.numDigits > i ? GET_NIBBLE( A.num, i ) : 0) * m_inv) % base));
 		BigNum temp = m.karatsubaMultiply( ui );
 		temp.left_shift( i * 4, NULL ); // * b^i
 		A.classicalAddition( temp, NULL );
@@ -1073,15 +1073,18 @@ BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
 	return A;
 }
 
-ULONGLONG BigNum::modInverse_bruteForce()
+ULONGLONG BigNum::modInverse_bruteForce( bool negative /*= true*/ )
 {
 	BigNum quotient, remainder, b( (ULONGLONG) base );
 	this->classicalDivision( b, quotient, remainder );
 	ULONGLONG a = remainder.toULL();
 
-	for( int i = 1; i < base; i++ )
-		if( (a * i) % base == 1 )
-			return i;
+	ULONGLONG retVal = 1;
+	for( ; retVal < base; retVal++ )
+		if( (a * retVal) % base == 1 )
+			break;
+
+	return negative ? base - retVal : retVal;
 }
 
 // a * x + b * y = v, where v = gcd(x,y)
