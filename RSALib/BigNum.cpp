@@ -1025,6 +1025,7 @@ BigNum BigNum::slidingWindowExp( BigNum& e )
 	return unfinished;
 }
 
+// X^e mod m, where 1 <= x < m, R = b^l
 BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
 {
 	// Pre-computer R^2 mod m and R mod m
