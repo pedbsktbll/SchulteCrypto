@@ -57,6 +57,7 @@ int DriverRSA()
 // 	}
 // 	return  0;
 
+	DWORD programStart = GetTickCount();
 
 	char szMod[] = "F0C42DB8486FEB9595D8C78F908D04A9B6C8C77A36105B1BF2755377A6893DC4383C54EC6B5262E5688E5F9D9DD16497D0E3EA833DEE2C8EBCD1438389FCCA8FEDE7A88A81257E8B2709C494D42F723DEC2E0B5C09731C550DCC9D7E752589891CBBC3021307DD918E100B34C014A559E0E182AFB21A72B307CC395DEC995747";
 	char szPubExp[] = "010001";
@@ -78,7 +79,10 @@ int DriverRSA()
 	RSAPublicKey p;
 	p.publicExponent.initialize( sizeof( pubExp ) * 2, pubExp, false );
 	p.modulus.initialize( sizeof( rsaMod ) * 2, rsaMod, false );
+
+	DWORD encryptStart = GetTickCount();
 	BigNum cipherText = p.cipher( plainText );
+	DWORD encryptEnd = GetTickCount();
 
 	char test1a[1024];
 	DWORD test1aSize = 1024;
@@ -109,13 +113,24 @@ int DriverRSA()
 	priv.exponent2.initialize( szExp2 );
 	priv.coefficient.initialize( szCoeff );
 
+	DWORD decryptStart = GetTickCount();
 	BigNum plainText2 = priv.decipher( cipherText );
+	DWORD decryptEnd = GetTickCount();
+
 	if( !(plainText2 == plainText) )
 	{
 		puts( "Error: decryption failed" );
 		return -2;
 	}
 	puts( "Decryption succeeded!" );
+
+	DWORD prorgramEnd = GetTickCount();
+
+	float programTotal = prorgramEnd - programStart;
+	float encryptTotal = encryptEnd - encryptStart;
+	float decryptTotal = decryptEnd - decryptStart;
+	printf( "Program stats:\n\tTotal Program time: %4.4f seconds\n\t\tEncryption Time: %4.4f seconds (%f ms)\n\t\tDecryption Time: %4.4f seconds (%f ms)\n",
+		programTotal / 1000.0, encryptTotal / 1000.0, encryptTotal, decryptTotal / 1000.0, decryptTotal );
 
 // 	BigNum test = priv.prime2.modInverse_fermat( priv.prime1 );
 // 	if( test == priv.coefficient )

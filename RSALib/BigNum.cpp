@@ -714,11 +714,11 @@ BigNum BigNum::karatsubaMultiply( BigNum& other )
 	if( numDigits <= 7 && other.numDigits <= 7 )
 		return this->toULL() * other.toULL();
 
-	if( this->numDigits <= 2 || other.numDigits <= 2 )
-	{
-		this->classicalMultiply( other, retVal );
-		return retVal;
-	}
+// 	if( this->numDigits <= 2 || other.numDigits <= 2 )
+// 	{
+// 		this->classicalMultiply( other, retVal );
+// 		return retVal;
+// 	}
 
 	DWORD totalDigits = this->numDigits > other.numDigits ? this->numDigits : other.numDigits;
 	DWORD m = (totalDigits + 1) / 2;
@@ -935,14 +935,29 @@ BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m, ULONGLONG* pm_inv /*= N
 //	BigNum b( (ULONGLONG) base );
 	ULONGLONG m_inv = (pm_inv == NULL ? m.modInverse_bruteForce() : *pm_inv);
 
-	BigNum A( 0ULL );
+	BigNum A( 0ULL ), xiy, uim;
 	for( int i = 0; i < n; i++ )
 	{
 		ULONGLONG ui = ((GET_NIBBLE( A.num, 0 ) + (this->numDigits > i ? GET_NIBBLE( this->num, i ) : 0) * GET_NIBBLE( y.num, 0 )) * m_inv) % base;
-		BigNum xiy( (ULONGLONG) (this->numDigits > i ? GET_NIBBLE( this->num, i ) : 0) );
-		BigNum uim( ui );
-		xiy = xiy.karatsubaMultiply( y );
-		uim = uim.karatsubaMultiply( m );
+		ULONGLONG xi( (ULONGLONG) (this->numDigits > i ? GET_NIBBLE( this->num, i ) : 0) );
+		
+		// multiplication optimizations...
+		switch( xi )
+		{
+			case 0x1: xiy = y; break;
+			case 0x2: y.left_shift( 1, &xiy ); break;
+			case 0x4: y.left_shift( 2, &xiy ); break;
+			case 0x8: y.left_shift( 3, &xiy ); break;
+			default: xiy = y.karatsubaMultiply( BigNum( xi ) );
+		}
+		switch( ui )
+		{
+			case 0x1: uim = m; break;
+			case 0x2: m.left_shift( 1, &uim ); break;
+			case 0x4: m.left_shift( 2, &uim ); break;
+			case 0x8: m.left_shift( 3, &uim ); break;
+			default: uim = m.karatsubaMultiply( BigNum( ui ) );
+		}
 
 		A.classicalAddition( xiy, NULL );
 		A.classicalAddition( uim, NULL );
