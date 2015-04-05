@@ -20,6 +20,7 @@
 #define SET_NIBBLE(arr, digitNum, val) arr[(digitNum) / 2] = ((digitNum) % 2 == 0 ? arr[(digitNum) / 2] & 0x0F | ( (val) << 4 ) : arr[(digitNum) / 2] & 0xF0 | (val))
 #define GET_NIBBLE(arr, digitNum) ((digitNum) % 2 == 0 ? (arr[(digitNum) / 2] & 0xF0) >> 4 : (arr[(digitNum) / 2] & 0x0F))
 
+#pragma region INIT_FUNCTIONS
 BigNum::BigNum()
 {
 	numDigits = 0;
@@ -117,7 +118,9 @@ void BigNum::initialize( char* num )
 		this->num[j / 2] |= (j % 2 == 0 ? b << 4 : b);
 	}
 }
+#pragma endregion INIT_FUNCTIONS
 
+#pragma region C++_OVERLOADED_FUNCTIONS
 bool BigNum::operator>(BigNum& other)
 {
 	this->validateNumDigits();
@@ -301,7 +304,6 @@ BigNum& BigNum::operator-=(BigNum& other)
 
 BigNum BigNum::operator*(BigNum& other)
 {
-//	return classicalMultiply( other );
 	return karatsubaMultiply( other );
 }
 
@@ -364,6 +366,72 @@ BigNum BigNum::operator>>(DWORD other)
 	}
 	retVal.numDigits -= other;
 	return retVal;
+}
+#pragma endregion C++_OVERLOADED_FUNCTIONS
+
+#pragma region CLASSICAL_ALGORITHMS
+void BigNum::left_shift( DWORD numShifts, BigNum* retVal )
+{
+	if( retVal == NULL )
+		retVal = this;
+	else
+		*retVal = *this;
+
+	DWORD newSize = (retVal->numDigits * 4 + numShifts + 8) / 8;
+	if( retVal->allocatedBytes < newSize )
+		retVal->increaseCapacity( newSize );
+
+	// Move (numShifts + 7) / 8... This *may* shift us too far...
+	memmove( retVal->num + (numShifts + 7) / 8, retVal->num, (retVal->numDigits + 1) / 2 );
+	SecureZeroMemory( retVal->num, (numShifts + 7) / 8 );
+	//	retVal->numDigits += (numShifts + 3) / 4;
+	retVal->numDigits += ((numShifts + 7) / 8) * 2;
+
+	// We may have shifted too far! If so, we right shift back 8 - numShifts % 8 ! :D Hopefully we don't right shift too far
+	DWORD lftShiftRemainder = numShifts % 8;
+	if( lftShiftRemainder != 0 )
+		retVal->right_shift( 8 - lftShiftRemainder, NULL );
+}
+
+void BigNum::right_shift( DWORD numShifts, BigNum* retVal )
+{
+	if( retVal == NULL )
+		retVal = this;
+	else
+		*retVal = *this;
+
+	if( numShifts / 8 >= (retVal->numDigits + 1) / 2 )
+	{
+		retVal->numDigits = 0;
+		SecureZeroMemory( retVal->num, retVal->allocatedBytes );
+		return;
+	}
+
+	// Let's actually right shift by the % 8 per byte first, THEN move the block
+	int rtShiftRemainder = numShifts % 8;
+	if( rtShiftRemainder != 0 )
+	{
+		BYTE nextByte = 0x00;
+		for( int i = ((this->numDigits + 1) / 2) - 1; i >= (int) (numShifts / 8); i-- )
+		{
+			BYTE thisByte = ((retVal->num[i] & 0xF0) >> 4) | ((retVal->num[i] & 0x0F) << 4); // Flip the nibbles, as this is how it's interpreted...
+			BYTE thisLeftover = (thisByte & (0xFF >> (8 - rtShiftRemainder))) << (8 - rtShiftRemainder);
+			thisByte = (thisByte >> rtShiftRemainder) | nextByte;
+			retVal->num[i] = ((thisByte & 0xF0) >> 4) | ((thisByte & 0x0F) << 4); // Flip it back...
+			nextByte = thisLeftover;
+		}
+	}
+
+	if( numShifts / 8 > 0 )
+	{
+		// Right shift by numShifts / 8... We may not have shifted far enough
+		memmove( retVal->num, retVal->num + numShifts / 8, ((retVal->numDigits + 1) / 2) - numShifts / 8 );
+		SecureZeroMemory( retVal->num + ((retVal->numDigits + 1) / 2) - numShifts / 8, numShifts / 8 );
+	}
+
+	retVal->numDigits -= numShifts / 4;
+	if( numShifts % 4 != 0 )
+		retVal->validateNumDigits();
 }
 
 void BigNum::classicalAddition( BigNum& other, BigNum* retVal )
@@ -592,64 +660,6 @@ void BigNum::classicalDivision( BigNum& other, BigNum& quotient, BigNum& remaind
 	quotient.validateNumDigits();
 }
 
-// void BigNum::appliedCryptoDivision( BigNum& other, BigNum& quotient, BigNum& remainder )
-// {
-// 	this->validateNumDigits();
-// 	other.validateNumDigits();
-// 	BigNum x = *this;
-// 	BigNum y = other;
-// 
-// 	DWORD n = this->numDigits - 1;
-// 	DWORD t = other.numDigits - 1;
-// 	DWORD q = n - t;
-// 	quotient.initialize( q );
-// 
-// 	if( other > *this )
-// 	{
-// 		remainder = *this;
-// 		return;
-// 	}
-// 	else if( other == *this )
-// 	{
-// 		quotient.num[0] = 1 << 4;
-// 		quotient.numDigits = 1;
-// 		return;
-// 	}
-// 
-// 	BigNum bnt(base ^ q);
-// 	BigNum multiple = y.karatsubaMultiply( bnt );
-// 	nibble* mostSignificant = (nibble*) &quotient.num[q / 2];
-// 	while( x >= multiple )
-// 	{
-// 		if( q % 2 == 0 )
-// 			mostSignificant->nibMost++;
-// 		else
-// 			mostSignificant->nibLeast++;
-// 		x -= multiple;
-// 	}
-// 
-// //	nibble* yt = (nibble*)&y.num[t / 2];
-// 	BYTE yt = (t % 2 == 0 ? (y.num[t / 2] & 0xF0) >> 4 : (y.num[t / 2] & 0x0F));
-// 	for( int i = n; i >= t + 1; i-- )
-// 	{
-// 		BYTE xi = GET_NIBBLE( x.num, i );
-// 		BYTE xi_1 = GET_NIBBLE( x.num, i - 1 );
-// 		BYTE xi_2 = GET_NIBBLE( x.num, i - 2 );
-// 		BYTE yt_1 = GET_NIBBLE( y.num, t - 1 );
-// 		BYTE q_i_t_1 = GET_NIBBLE( quotient.num, i - t - 1 );
-// 		if( xi == yt )
-// 			SET_NIBBLE( quotient.num, i - t - 1, base - 1 );
-// 		else
-// 			SET_NIBBLE( quotient.num, i - t - 1, (xi * base + xi_1) / yt );
-// 
-// 		while( q_i_t_1 * (yt * base + yt_1) > xi * base * base + xi_1 * base + xi_2 )
-// 		{
-// 			SET_NIBBLE( q.num, i - t - 1, --q_i_t_1 );
-// 		}
-// 		BigNum fuckm( (ULONGLONG) q_i_t_1 * (ULONGLONG) y * (ULONGLONG) base ^ (i - t - 1) );
-// 	}
-// }
-
 /****************** Exponentiation by squaring: O((n*log(x))^k) ******************
 x^15 = (x^7)*(x^7)*x
 x^7 = (x^3)*(x^3)*x
@@ -679,6 +689,22 @@ BigNum BigNum::classicalExponent( BigNum& exponent )
 	return retVal;
 }
 
+ULONGLONG BigNum::modInverse_bruteForce( bool negative /*= true*/ )
+{
+	BigNum quotient, remainder, b( (ULONGLONG) base );
+	this->classicalDivision( b, quotient, remainder );
+	ULONGLONG a = remainder.toULL();
+
+	ULONGLONG retVal = 1;
+	for( ; retVal < base; retVal++ )
+		if( (a * retVal) % base == 1 )
+			break;
+
+	return negative ? base - retVal : retVal;
+}
+#pragma endregion CLASSICAL_ALGORITHMS
+
+#pragma region ADVANCED_ALGORITHMS
 BigNum BigNum::pow_modulo( BigNum& power, BigNum& modulo )
 {
 	BigNum two;
@@ -768,90 +794,29 @@ BigNum BigNum::karatsubaMultiply( BigNum& other )
 	return retVal;
 }
 
-void BigNum::validateNumDigits()
+BigNum BigNum::slidingWindowExp( BigNum& e )
 {
-	// ensures numDigits is correct
-	for( int i = numDigits - 1; i >= 0; i-- )
+	const ULONGLONG k = 6;
+	BigNum window[128]; // Our sliding window: 2 << k
+
+	// Pre-computation:
+	window[0] = *this;
+	window[1] = this->karatsubaMultiply( *this );
+	ULONGLONG max = (2 << (k - 1));// -1;
+	for( ULONGLONG i = 1; i < max; i++ )
+		window[2 * i] = window[2 * i - 2].karatsubaMultiply( window[1] );
+
+	BigNum A( 1ULL );
+	for( LONGLONG i = e.numDigits - 1; i >= 0; i-- )
 	{
-		if( ((i % 2) == 0 ? (num[i / 2] & 0xF0) >> 4 : num[i / 2] & 0x0F) == 0 )
-			numDigits--;
+		if( GET_NIBBLE( e.num, i ) == 0 )
+			A = A.karatsubaMultiply( A );
 		else
-			break;
+			;
 	}
 
-	// Should we also clear the rest that isn't in the numDigits?
-	if( numDigits % 2 != 0 )
-		num[numDigits / 2] &= 0xF0;
-	DWORD extraClears = allocatedBytes - ((numDigits + 1) / 2);
-	if( extraClears > 0 )
-		SecureZeroMemory( num + ((numDigits + 1) / 2), extraClears );
-}
-
-void BigNum::clear()
-{
-	allocatedBytes = numDigits = 0;
-	if( num != NULL )
-		free( num );
-	num = NULL;
-}
-
-void BigNum::increaseCapacity( DWORD totalBytes )
-{
-	if( this->allocatedBytes >= totalBytes )
-		return;
-
-	this->num = (BYTE*) realloc( this->num, totalBytes );
-	this->allocatedBytes = totalBytes;
-}
-
-void BigNum::padDigits( DWORD totalDigits )
-{
-	if( this->numDigits >= totalDigits )
-		return;
-
-	DWORD newSize = (totalDigits + 1) / 2;
-	if( this->allocatedBytes < newSize )
-		increaseCapacity( newSize );
-
-	SecureZeroMemory( this->num + (this->numDigits + 1) / 2, (totalDigits + 1) / 2 - ((this->numDigits + 1) / 2) );
-	this->numDigits = totalDigits;
-}
-
-bool BigNum::toArray( char* array, DWORD& len )
-{
-	if( array == NULL || len < (this->numDigits + 1) / 2 )
-		return false;
-
-	DWORD indx = 0;
-	BYTE b = 0;
-	len = (this->numDigits + 1) / 2;
-	if( this->numDigits % 2 != 0 )
-	{
-		b = (num[len - 1] & 0xF0) >> 4;
-		array[indx++] = (b < 10 ? b + '0' : b - 10 + 'A');
-	}
-	
-	for( DWORD i = indx; i < len; i++ )
-	{
-		b = num[len - 1 - i];
-		array[indx++] = ((b & 0x0F) < 10 ? (b & 0x0F) + '0' : (b & 0x0F) - 10 + 'A');
-		array[indx++] = (((b & 0xF0) >> 4) < 10 ? ((b & 0xF0) >> 4) + '0' : ((b & 0xF0) >> 4) - 10 + 'A');
-	}
-	array[indx++] = '\0';
-	len = indx;
-	return true;
-}
-
-ULONGLONG BigNum::toULL()
-{
-	if( numDigits > 16 )
-		return -1;
-
-	ULONGLONG retVal = 0;
-	BYTE* b = (BYTE*) &retVal;
-	for( DWORD i = 0; i < /*allocatedBytes*/(numDigits + 1) / 2; i++ )
-		b[i] = ((this->num[i] & 0xF0) >> 4) | ((this->num[i] & 0x0F) << 4);
-	return retVal;
+	BigNum unfinished;
+	return unfinished;
 }
 
 // Fermat's Little Theorem: https://comeoncodeon.wordpress.com/2011/10/09/modular-multiplicative-inverse/
@@ -860,71 +825,36 @@ ULONGLONG BigNum::toULL()
 BigNum BigNum::modInverse_fermat( BigNum& other )
 {
 	BigNum two( "2" );
-	return pow_modulo(other - two, other);
+	return pow_modulo( other - two, other );
 }
+#pragma endregion ADVANCED_ALGORITHMS
 
-void BigNum::left_shift( DWORD numShifts, BigNum* retVal )
+#pragma region MONTGOMERY_REDUCTION_ALGORITHMS
+// Montgomery Reduction: Given T, m -> TR^-1 * mod m (HAC 14.85)
+// GCD(m,b) = 1, R = b ^ n, m' = -m^-1 mod b, T < m * R
+BigNum BigNum::montgomeryReduction( BigNum &m, ULONGLONG *m_invPtr /*= NULL */ )
 {
-	if( retVal == NULL )
-		retVal = this;
+	BigNum b( (ULONGLONG) base );
+	ULONGLONG m_inv;
+	ULONGLONG n = m.numDigits;
+	if( m_invPtr != NULL )
+		m_inv = *m_invPtr;
 	else
-		*retVal = *this;
+		m_inv = m.modInverse_bruteForce();// m.modInverse_fermat( b ).toULL();
 
-	DWORD newSize = (retVal->numDigits * 4 + numShifts + 8) / 8; 
-	if( retVal->allocatedBytes < newSize )
-		retVal->increaseCapacity( newSize );
-
-	// Move (numShifts + 7) / 8... This *may* shift us too far...
-	memmove( retVal->num + (numShifts + 7) / 8, retVal->num, (retVal->numDigits + 1) / 2 );
-	SecureZeroMemory( retVal->num, (numShifts + 7) / 8 );
-//	retVal->numDigits += (numShifts + 3) / 4;
-	retVal->numDigits += ((numShifts + 7) / 8) * 2;
-
-	// We may have shifted too far! If so, we right shift back 8 - numShifts % 8 ! :D Hopefully we don't right shift too far
-	DWORD lftShiftRemainder = numShifts % 8;
-	if( lftShiftRemainder != 0 )
-		retVal->right_shift( 8 - lftShiftRemainder, NULL );
-}
-
-void BigNum::right_shift( DWORD numShifts, BigNum* retVal )
-{
-	if( retVal == NULL )
-		retVal = this;
-	else
-		*retVal = *this;
-
-	if( numShifts / 8 >= (retVal->numDigits + 1) / 2 )
+	BigNum A = *this;
+	for( ULONGLONG i = 0; i < n; i++ )
 	{
-		retVal->numDigits = 0;
-		SecureZeroMemory( retVal->num, retVal->allocatedBytes );
-		return;
+		BigNum ui( (ULONGLONG) (((A.numDigits > i ? GET_NIBBLE( A.num, i ) : 0) * m_inv) % base) );
+		BigNum temp = m.karatsubaMultiply( ui );
+		temp.left_shift( (DWORD) i * 4, NULL ); // * b^i
+		A.classicalAddition( temp, NULL );
 	}
+	A.right_shift( (DWORD) n * 4ULL, NULL ); // / b^i
 
-	// Let's actually right shift by the % 8 per byte first, THEN move the block
-	int rtShiftRemainder = numShifts % 8;
-	if( rtShiftRemainder != 0 )
-	{
-		BYTE nextByte = 0x00;
-		for( int i = ((this->numDigits + 1) / 2) - 1; i >= (int) (numShifts / 8); i-- )
-		{
-			BYTE thisByte = ((retVal->num[i] & 0xF0) >> 4) | ((retVal->num[i] & 0x0F) << 4); // Flip the nibbles, as this is how it's interpreted...
-			BYTE thisLeftover = (thisByte & (0xFF >> (8 - rtShiftRemainder))) << (8 - rtShiftRemainder);
-			thisByte = (thisByte >> rtShiftRemainder) | nextByte;
-			retVal->num[i] = ((thisByte & 0xF0) >> 4) | ((thisByte & 0x0F) << 4); // Flip it back...
-			nextByte = thisLeftover;
-		}
-	}
-
-	if( numShifts / 8 > 0 )
-	{
-		// Right shift by numShifts / 8... We may not have shifted far enough
-		memmove( retVal->num, retVal->num + numShifts / 8, ((retVal->numDigits + 1) / 2) - numShifts / 8 );
-		SecureZeroMemory( retVal->num + ((retVal->numDigits + 1) / 2) - numShifts / 8, numShifts / 8 );
-	}
-
-	retVal->numDigits -= numShifts / 4;
-	if( numShifts % 4 != 0 )
-		retVal->validateNumDigits();
+	if( A >= m )
+		A.classicalSubtract( m, NULL );
+	return A;
 }
 
 // Montgomery Multiplication: x * y mod m |||| HAC 14.36
@@ -932,15 +862,15 @@ void BigNum::right_shift( DWORD numShifts, BigNum* retVal )
 BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m, ULONGLONG* pm_inv /*= NULL*/ )
 {
 	ULONGLONG n = m.numDigits;
-//	BigNum b( (ULONGLONG) base );
+	//	BigNum b( (ULONGLONG) base );
 	ULONGLONG m_inv = (pm_inv == NULL ? m.modInverse_bruteForce() : *pm_inv);
 
 	BigNum A( 0ULL ), xiy, uim;
-	for( int i = 0; i < n; i++ )
+	for( ULONGLONG i = 0; i < n; i++ )
 	{
 		ULONGLONG ui = ((GET_NIBBLE( A.num, 0 ) + (this->numDigits > i ? GET_NIBBLE( this->num, i ) : 0) * GET_NIBBLE( y.num, 0 )) * m_inv) % base;
 		ULONGLONG xi( (ULONGLONG) (this->numDigits > i ? GET_NIBBLE( this->num, i ) : 0) );
-		
+
 		// multiplication optimizations...
 		switch( xi )
 		{
@@ -969,30 +899,61 @@ BigNum BigNum::montgomeryMultiply( BigNum &y, BigNum &m, ULONGLONG* pm_inv /*= N
 	return A;
 }
 
-// Montgomery Reduction: Given T, m -> TR^-1 * mod m (HAC 14.85)
-// GCD(m,b) = 1, R = b ^ n, m' = -m^-1 mod b, T < m * R
-BigNum BigNum::montgomeryReduction( BigNum &m, ULONGLONG *m_invPtr /*= NULL */ )
+// X^e mod m, where 1 <= x < m, R = b^l
+BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
 {
-	BigNum b( (ULONGLONG) base );
-	ULONGLONG m_inv;
-	ULONGLONG n = m.numDigits;
-	if( m_invPtr != NULL )
-		m_inv = *m_invPtr;
+	// Pre-computer R^2 mod m and R mod m
+	BigNum R( /*1ULL*/ (ULONGLONG) base ), A, R2, R2Modm, quotient;
+	//	R.left_shift( m.numDigits * 4, NULL ); // R = b ^ l, where l = number of digits of m
+	//	R.left_shift( 1 * 4, &R2 );
+	R = R.classicalExponent( BigNum( (ULONGLONG) m.numDigits ) ); // R = b^l
+	R.classicalDivision( m, quotient, A ); // A = R mod m
+
+	R2 = R.karatsubaMultiply( R );
+	R2.classicalDivision( m, quotient, R2Modm ); // R2Modm = R^2 mod m
+
+	// 	// W[1] = X * R^2 * R^-1 mod N = X * R mod N
+	// 	if( *this > m )
+	// 		this->classicalDivision(m, quotient, )
+
+
+	// A = R^2 * R^-1 mod m = R mod m
+	//	BigNum A = R2Modm.montgomeryReduction( m, m.numDigits );
+
+	//	BigNum A = R.montgomeryReduction( m, m.numDigits ); // A = R mod m
+	//	R.montgomeryMultiply( R, m ); // R = R^2 mod m
+
+	// Get the negative modular inverse of m, since we'll be using it throughout montgomery operations:
+	ULONGLONG m_inv = m.modInverse_bruteForce();
+
+	// Ensure that x < m, which are the preconditions for montgomeryExponentiation
+	BigNum x_mont;
+	if( *this >= m )
+		this->classicalDivision( m, quotient, x_mont );
 	else
-		m_inv = m.modInverse_bruteForce();// m.modInverse_fermat( b ).toULL();
+		x_mont = *this;
+	x_mont = x_mont.montgomeryMultiply( R2Modm, m, &m_inv ); // x~ = x * R ^2 mod m
 
-	BigNum A = *this;
-	for( int i = 0; i < n; i++ )
+	// Let's get the total number of binary digits in e, stopping at the last "1"
+	ULONGLONG t = (e.numDigits - 1) * 4;// -1;
+	BYTE et = GET_NIBBLE( e.num, e.numDigits - 1 );
+	if( et & 0x8 )
+		t += 3;//4;
+	else if( et & 0x4 )
+		t += 2;//3;
+	else if( et & 0x2 )
+		t += 1;//2;
+	// 	else
+	// 		t += 1;
+
+	for( LONGLONG i = t; i >= 0; i-- )
 	{
-		BigNum ui( (ULONGLONG) (((A.numDigits > i ? GET_NIBBLE( A.num, i ) : 0) * m_inv) % base));
-		BigNum temp = m.karatsubaMultiply( ui );
-		temp.left_shift( i * 4, NULL ); // * b^i
-		A.classicalAddition( temp, NULL );
+		A = A.montgomeryMultiply( A, m, &m_inv );
+		if( GET_NIBBLE( e.num, i / 4ULL ) & (1 << (i % 4ULL)) )
+			A = A.montgomeryMultiply( x_mont, m, &m_inv );
 	}
-	A.right_shift( n * 4ULL, NULL ); // / b^i
-
-	if( A >= m )
-		A.classicalSubtract( m, NULL );
+	//	A = A.montgomeryReduction( m, m.numDigits );
+	A = A.montgomeryMultiply( BigNum( 1ULL ), m, &m_inv );
 	return A;
 }
 
@@ -1014,189 +975,94 @@ BigNum BigNum::montSlidingWindowExp( BigNum &e, BigNum& N )
 	BigNum unfinished;
 	return unfinished;
 }
+#pragma endregion MONTGOMERY_REDUCTION_ALGORITHMS
 
-BigNum BigNum::slidingWindowExp( BigNum& e )
+#pragma region USER_FUNCTIONS
+void BigNum::clear()
 {
-	const ULONGLONG k = 6;
-	BigNum window[128]; // Our sliding window: 2 << k
+	allocatedBytes = numDigits = 0;
+	if( num != NULL )
+		free( num );
+	num = NULL;
+}
 
-	// Pre-computation:
-	window[0] = *this;
-	window[1] = this->karatsubaMultiply( *this );
-	ULONGLONG max = (2 << (k - 1));// -1;
-	for( ULONGLONG i = 1; i < max; i++ )
-		window[2 * i] = window[2 * i - 2].karatsubaMultiply( window[1] );
+bool BigNum::toArray( char* array, DWORD& len )
+{
+	if( array == NULL || len < (this->numDigits + 1) / 2 )
+		return false;
 
-	BigNum A( 1ULL );
-	for( ULONGLONG i = e.numDigits - 1; i >= 0; i-- )
+	DWORD indx = 0;
+	BYTE b = 0;
+	len = (this->numDigits + 1) / 2;
+	if( this->numDigits % 2 != 0 )
 	{
-		if( GET_NIBBLE( e.num, i ) == 0 )
-			A = A.karatsubaMultiply( A );
+		b = (num[len - 1] & 0xF0) >> 4;
+		array[indx++] = (b < 10 ? b + '0' : b - 10 + 'A');
+	}
+
+	for( DWORD i = indx; i < len; i++ )
+	{
+		b = num[len - 1 - i];
+		array[indx++] = ((b & 0x0F) < 10 ? (b & 0x0F) + '0' : (b & 0x0F) - 10 + 'A');
+		array[indx++] = (((b & 0xF0) >> 4) < 10 ? ((b & 0xF0) >> 4) + '0' : ((b & 0xF0) >> 4) - 10 + 'A');
+	}
+	array[indx++] = '\0';
+	len = indx;
+	return true;
+}
+
+ULONGLONG BigNum::toULL()
+{
+	if( numDigits > 16 )
+		return -1;
+
+	ULONGLONG retVal = 0;
+	BYTE* b = (BYTE*) &retVal;
+	for( DWORD i = 0; i < /*allocatedBytes*/(numDigits + 1) / 2; i++ )
+		b[i] = ((this->num[i] & 0xF0) >> 4) | ((this->num[i] & 0x0F) << 4);
+	return retVal;
+}
+#pragma endregion USER_FUNCTIONS
+
+#pragma region INTERNAL_FUNCTIONS
+void BigNum::validateNumDigits()
+{
+	// ensures numDigits is correct
+	for( int i = numDigits - 1; i >= 0; i-- )
+	{
+		if( ((i % 2) == 0 ? (num[i / 2] & 0xF0) >> 4 : num[i / 2] & 0x0F) == 0 )
+			numDigits--;
 		else
-			;
-	}
-
-	BigNum unfinished;
-	return unfinished;
-}
-
-// X^e mod m, where 1 <= x < m, R = b^l
-BigNum BigNum::montgomeryExponent( BigNum &e, BigNum &m )
-{
-	// Pre-computer R^2 mod m and R mod m
-	BigNum R( /*1ULL*/ (ULONGLONG) base ), A, R2, R2Modm, quotient;
-//	R.left_shift( m.numDigits * 4, NULL ); // R = b ^ l, where l = number of digits of m
-//	R.left_shift( 1 * 4, &R2 );
-	R = R.classicalExponent( BigNum((ULONGLONG) m.numDigits) ); // R = b^l
-	R.classicalDivision( m, quotient, A ); // A = R mod m
-
-	R2 = R.karatsubaMultiply( R );
-	R2.classicalDivision( m, quotient, R2Modm ); // R2Modm = R^2 mod m
-
-// 	// W[1] = X * R^2 * R^-1 mod N = X * R mod N
-// 	if( *this > m )
-// 		this->classicalDivision(m, quotient, )
-
-
-	// A = R^2 * R^-1 mod m = R mod m
-//	BigNum A = R2Modm.montgomeryReduction( m, m.numDigits );
-
-//	BigNum A = R.montgomeryReduction( m, m.numDigits ); // A = R mod m
-//	R.montgomeryMultiply( R, m ); // R = R^2 mod m
-
-	// Get the negative modular inverse of m, since we'll be using it throughout montgomery operations:
-	ULONGLONG m_inv = m.modInverse_bruteForce();
-	
-	// Ensure that x < m, which are the preconditions for montgomeryExponentiation
-	BigNum x_mont;
-	if( *this >= m )
-		this->classicalDivision( m, quotient, x_mont );
-	else
-		x_mont = *this;
-	x_mont = x_mont.montgomeryMultiply( R2Modm, m, &m_inv ); // x~ = x * R ^2 mod m
-
-	// Let's get the total number of binary digits in e, stopping at the last "1"
-	ULONGLONG t = (e.numDigits - 1) * 4;// -1;
-	BYTE et = GET_NIBBLE( e.num, e.numDigits - 1 );
-	if( et & 0x8 )
-		t += 3;//4;
-	else if( et & 0x4 )
-		t += 2;//3;
-	else if( et & 0x2 )
-		t += 1;//2;
-// 	else
-// 		t += 1;
-
-	for( LONGLONG i = t; i >= 0; i-- )
-	{
-		A = A.montgomeryMultiply( A, m, &m_inv );
-		if( GET_NIBBLE( e.num, i / 4ULL ) & (1 << (i % 4ULL)) )
-			A = A.montgomeryMultiply( x_mont, m, &m_inv );
-	}
-//	A = A.montgomeryReduction( m, m.numDigits );
-	A = A.montgomeryMultiply( BigNum( 1ULL ), m, &m_inv );
-	return A;
-}
-
-ULONGLONG BigNum::modInverse_bruteForce( bool negative /*= true*/ )
-{
-	BigNum quotient, remainder, b( (ULONGLONG) base );
-	this->classicalDivision( b, quotient, remainder );
-	ULONGLONG a = remainder.toULL();
-
-	ULONGLONG retVal = 1;
-	for( ; retVal < base; retVal++ )
-		if( (a * retVal) % base == 1 )
 			break;
+	}
 
-	return negative ? base - retVal : retVal;
+	// Should we also clear the rest that isn't in the numDigits?
+	if( numDigits % 2 != 0 )
+		num[numDigits / 2] &= 0xF0;
+	DWORD extraClears = allocatedBytes - ((numDigits + 1) / 2);
+	if( extraClears > 0 )
+		SecureZeroMemory( num + ((numDigits + 1) / 2), extraClears );
 }
 
-// IF x > m, then we have a proble... we need to cut x until it's less than m, then do mont exp
-// Result = x ^ e mod m
-// BigNum BigNum::montDivideAndConquerExponent( BigNum& e, BigNum &m )
-// {
-// 
-// }
+void BigNum::increaseCapacity( DWORD totalBytes )
+{
+	if( this->allocatedBytes >= totalBytes )
+		return;
 
-// a * x + b * y = v, where v = gcd(x,y)
-// See Algorithm 14.61 of HAC
-// BigNum BigNum::modInverse( BigNum& other )
-// {
-// 	BigNum g( "1" );
-// 	BigNum x = *this;
-// 	BigNum y = other;
-// 
-// 	while( (GET_NIBBLE( x.num, 0 ) % 2 == 0) && GET_NIBBLE( y.num, 0 ) % 2 == 0 )
-// 	{
-// 		x.right_shift( 1, NULL );
-// 		y.right_shift( 1, NULL );
-// 		g.left_shift( 1, NULL );
-// 	}
-// 
-// 	BigNum u = x;
-// 	BigNum v = y;
-// 	BigNum A( "1" );
-// 	BigNum B( "0" );
-// 	BigNum C( "0" );
-// 	BigNum D( "1" );
-// 
-// STEP_4:
-// 	while( GET_NIBBLE( u.num, 0 ) % 2 == 0 )
-// 	{
-// 		u.right_shift( 1, NULL );
-// 		if( GET_NIBBLE( A.num, 0 ) % 2 == 0 && GET_NIBBLE( B.num, 0 ) % 2 == 0 )
-// 		{
-// 			A.right_shift( 1, NULL );
-// 			B.right_shift( 1, NULL );
-// 		}
-// 		else
-// 		{
-// 			A.classicalAddition( y, NULL );
-// 			A.right_shift( 1, NULL );
-// 			B.classicalSubtract( x, NULL );
-// 			B.right_shift( 1, NULL );
-// 
-// 		}
-// 	}
-// 
-// 	while( GET_NIBBLE( v.num, 0 ) % 2 == 0 )
-// 	{
-// 		v.right_shift( 1, NULL );
-// 		if( GET_NIBBLE( C.num, 0 ) % 2 == 0 && GET_NIBBLE( D.num, 0 ) % 2 == 0 )
-// 		{
-// 			C.right_shift( 1, NULL );
-// 			D.right_shift( 1, NULL );
-// 		}
-// 		else
-// 		{
-// 			C.classicalAddition( y, NULL );
-// 			C.right_shift( 1, NULL );
-// 			D.classicalSubtract( x, NULL );
-// 			D.right_shift( 1, NULL );
-// 
-// 		}
-// 	}
-// 
-// 	if( u >= v )
-// 	{
-// 		u.classicalSubtract( v, NULL );
-// 		A.classicalSubtract( C, NULL );
-// 		B.classicalSubtract( D, NULL );
-// 	}
-// 	else
-// 	{
-// 		v.classicalSubtract( u, NULL );
-// 		C.classicalSubtract( A, NULL );
-// 		D.classicalSubtract( B, NULL );
-// 	}
-// 
-// 	if( u.numDigits == 0 )
-// 	{
-// 		BigNum a = C;
-// 		BigNum b = D;
-// 		BigNum retV = v.karatsubaMultiply( g );
-// 	}
-// 	else
-// 		goto STEP_4;
-// }
+	this->num = (BYTE*) realloc( this->num, totalBytes );
+	this->allocatedBytes = totalBytes;
+}
+
+void BigNum::padDigits( DWORD totalDigits )
+{
+	if( this->numDigits >= totalDigits )
+		return;
+
+	DWORD newSize = (totalDigits + 1) / 2;
+	if( this->allocatedBytes < newSize )
+		increaseCapacity( newSize );
+
+	SecureZeroMemory( this->num + (this->numDigits + 1) / 2, (totalDigits + 1) / 2 - ((this->numDigits + 1) / 2) );
+	this->numDigits = totalDigits;
+}
+#pragma endregion INTERNAL_FUNCTIONS

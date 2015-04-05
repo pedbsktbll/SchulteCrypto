@@ -126,9 +126,9 @@ int DriverRSA()
 
 	DWORD prorgramEnd = GetTickCount();
 
-	float programTotal = prorgramEnd - programStart;
-	float encryptTotal = encryptEnd - encryptStart;
-	float decryptTotal = decryptEnd - decryptStart;
+	float programTotal = (float) (prorgramEnd - programStart);
+	float encryptTotal = (float) (encryptEnd - encryptStart);
+	float decryptTotal = (float) (decryptEnd - decryptStart);
 	printf( "Program stats:\n\tTotal Program time: %4.4f seconds\n\t\tEncryption Time: %4.4f seconds (%f ms)\n\t\tDecryption Time: %4.4f seconds (%f ms)\n",
 		programTotal / 1000.0, encryptTotal / 1000.0, encryptTotal, decryptTotal / 1000.0, decryptTotal );
 
